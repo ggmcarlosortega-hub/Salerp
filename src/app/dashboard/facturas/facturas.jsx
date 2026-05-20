@@ -1,194 +1,475 @@
-"use client";
-import React, { useState, useEffect } from 'react';
+'use client';
 
-// Ajusta los puertos según corresponda en tu entorno local
-const API_FACTURAS = 'http://localhost:3001/api/factura';
-const API_CLIENTES = 'http://localhost:3001/api/cliente'; 
+import { useEffect, useRef, useState } from 'react';
+import styles from './css/facturas.module.css';
 
-export default function GestionFacturas() {
-  const [factura, setFactura] = useState({ 
-    id_factura: '', 
-    id_cliente: '', 
-    total: '', 
-    observaciones: '' 
-  });
-  
-  const [lista, setLista] = useState([]);
-  const [clientes, setClientes] = useState([]); // <-- Estado para almacenar los clientes de la BD
-  const [loading, setLoading] = useState(true);
+export default function Facturas() {
+  const contenedorRef = useRef(null);
+  const [clientes, setClientes] = useState([]);
+  const [productos, setProductos] = useState([]);
+
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [idCliente, setIdCliente] = useState('');
+
+  const [asunto, setAsunto] = useState('');
+  const [idProducto, setIdProducto] = useState('');
+  const [cantidad, setCantidad] = useState(1);
+
+  const [items, setItems] = useState([]);
+
+  const [iva, setIva] = useState(0);
+  const [descuento, setDescuento] = useState(0);
+
+  const [mensaje, setMensaje] = useState('');
+  const [error, setError] = useState('');
+
+  const API_URL = 'http://localhost:3001/api/factura';
 
   useEffect(() => {
-    // Cargamos tanto las facturas como los clientes al iniciar
-    Promise.all([obtenerFacturas(), obtenerClientes()])
-      .finally(() => setLoading(false));
+    cargarDatos();
   }, []);
 
-  const obtenerFacturas = async () => {
+  const cargarDatos = async () => {
     try {
-      const respuesta = await fetch(API_FACTURAS);
-      if (respuesta.ok) {
-        const datos = await respuesta.json();
-        setLista(datos);
+      setError('');
+
+      const respuesta = await fetch(`${API_URL}/datos`);
+
+      if (!respuesta.ok) {
+        throw new Error('No se pudieron cargar los datos.');
       }
+
+      const data = await respuesta.json();
+
+      setClientes(data.clientes || []);
+      setProductos(data.productos || []);
     } catch (error) {
-      console.error("Error al cargar las facturas:", error);
+      console.error(error);
+      setError(`Error cargando datos: ${error.message}`);
     }
   };
 
-  const obtenerClientes = async () => {
+  const descargarPDF = async (idFactura) => {
     try {
-      const respuesta = await fetch(API_CLIENTES);
-      if (respuesta.ok) {
-        const datos = await respuesta.json();
-        setClientes(datos);
+      const response = await fetch(
+        `http://localhost:3001/api/factura/${idFactura}/pdf`
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Error generando el PDF');
+        return;
       }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Factura-${idFactura}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
     } catch (error) {
-      console.error("Error al cargar los clientes:", error);
+      console.error('Error descargando PDF:', error);
+      alert('Error descargando el PDF');
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFactura({ ...factura, [name]: value });
+  const seleccionarCliente = (e) => {
+    const id = e.target.value;
+    setIdCliente(id);
+
+    const cliente = clientes.find(
+      (c) => Number(c.id_cliente) === Number(id)
+    );
+
+    setClienteSeleccionado(cliente || null);
   };
 
-  const RegistrarFactura = async (e) => {
-    e.preventDefault();
-    if (!factura.id_cliente || !factura.total) {
-      alert("El cliente y el total son obligatorios.");
+  const agregarProducto = () => {
+    setError('');
+    setMensaje('');
+
+    if (!idProducto) {
+      setError('Debe seleccionar un producto.');
       return;
     }
 
-    try {
-      const respuesta = await fetch(API_FACTURAS, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id_cliente: parseInt(factura.id_cliente),
-          total: parseFloat(factura.total),
-          observaciones: factura.observaciones
-        })
+    if (!cantidad || Number(cantidad) <= 0) {
+      setError('La cantidad debe ser mayor a 0.');
+      return;
+    }
+
+    const producto = productos.find(
+      (p) => Number(p.id_producto) === Number(idProducto)
+    );
+
+    if (!producto) {
+      setError('Producto no encontrado.');
+      return;
+    }
+
+    const productoYaExiste = items.find(
+      (item) => Number(item.id_producto) === Number(producto.id_producto)
+    );
+
+    if (productoYaExiste) {
+      const nuevosItems = items.map((item) => {
+        if (Number(item.id_producto) === Number(producto.id_producto)) {
+          const nuevaCantidad = Number(item.cantidad) + Number(cantidad);
+
+          return {
+            ...item,
+            cantidad: nuevaCantidad,
+            subtotal: nuevaCantidad * Number(item.precio_unitario)
+          };
+        }
+
+        return item;
       });
 
-      if (respuesta.ok) {
-        setFactura({ id_factura: '', id_cliente: '', total: '', observaciones: '' });
-        obtenerFacturas();
-      }
-    } catch (error) {
-      console.error("Error al registrar factura:", error);
+      setItems(nuevosItems);
+    } else {
+      const nuevoItem = {
+        id_producto: producto.id_producto,
+        nombre: producto.nombre,
+        cantidad: Number(cantidad),
+        precio_unitario: Number(producto.precio),
+        subtotal: Number(producto.precio) * Number(cantidad)
+      };
+
+      setItems([...items, nuevoItem]);
     }
+
+    setIdProducto('');
+    setCantidad(1);
   };
 
-  if (loading) {
-    return <div className="p-8 text-center text-gray-500">Cargando datos del módulo...</div>;
+  const eliminarProducto = (id_producto) => {
+    const nuevosItems = items.filter(
+      (item) => Number(item.id_producto) !== Number(id_producto)
+    );
+
+    setItems(nuevosItems);
+  };
+
+  const subtotalGeneral = items.reduce((total, item) => {
+    return total + Number(item.subtotal);
+  }, 0);
+
+  const valorIva = subtotalGeneral * (Number(iva || 0) / 100);
+
+  const totalFinal = subtotalGeneral + valorIva - Number(descuento || 0);
+
+  const formatoMoneda = (valor) => {
+    return Number(valor || 0).toLocaleString('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    });
+  };
+
+  const guardarFactura = async () => {
+  try {
+    setError('');
+    setMensaje('');
+
+    if (!idCliente) {
+      setError('Debe seleccionar un cliente.');
+      return;
+    }
+
+    if (items.length === 0) {
+      setError('Debe agregar al menos un producto.');
+      return;
+    }
+
+    if (totalFinal < 0) {
+      setError('El total final no puede ser negativo.');
+      return;
+    }
+
+    const datosFactura = {
+      id_cliente: Number(idCliente),
+      asunto,
+      iva: Number(iva || 0),
+      descuento: Number(descuento || 0),
+      items: items.map((item) => ({
+        id_producto: Number(item.id_producto),
+        cantidad: Number(item.cantidad)
+      }))
+    };
+
+    console.log('Datos enviados al backend:', datosFactura);
+
+    const respuesta = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(datosFactura)
+    });
+
+    const data = await respuesta.json();
+
+    console.log('Respuesta del backend:', data);
+
+    if (!respuesta.ok) {
+      throw new Error(data.error || 'Error guardando la Factura.');
+    }
+
+    const idFactura =
+      data?.data?.id_factura ||
+      data?.id_factura ||
+      data?.resultado?.id_factura ||
+      '';
+
+    if (idFactura) {
+      setMensaje(`Factura guardada correctamente. ID: ${idFactura}`);
+    } else {
+      setMensaje('Factura guardada correctamente.');
+    }
+    descargarPDF(idFactura);
+    window.scrollTo(0, 0);
+    limpiarFormulario();
+
+  } catch (error) {
+    console.error('Error al guardar Factura:', error);
+    setError(error.message);
   }
+};
+
+  const limpiarFormulario = () => {
+    setIdCliente('');
+    setClienteSeleccionado(null);
+    setAsunto('');
+    setIdProducto('');
+    setCantidad(1);
+    setItems([]);
+    setIva(0);
+    setDescuento(0);
+  };
 
   return (
-    <div className="w-full mt-4 animate-in fade-in duration-500">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Gestión de Facturas</h2>
-      
-      {/* VALIDACIÓN CRÍTICA: Si no hay clientes, bloquea el formulario */}
-      {clientes.length === 0 ? (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-xl mb-8 text-center">
-          <p className="font-semibold text-lg">No hay clientes registrados en el sistema.</p>
-          <p className="text-sm mt-1 text-amber-700">
-            Para poder generar una factura, primero debes registrar al menos un cliente en el módulo correspondiente.
-          </p>
+    <div ref={contenedorRef}className={styles.container}>
+      <h1>Nueva Factura</h1>
+
+      {error && (
+        <div className={styles.alertError}>
+          {error}
         </div>
-      ) : (
-        /* Formulario habilitado únicamente si existen clientes */
-        <form onSubmit={RegistrarFactura} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            
-            {/* Dropdown dinámico que reemplaza el input manual del ID */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Seleccionar Cliente</label>
-              <select
-                name="id_cliente"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E] bg-white"
-                value={factura.id_cliente}
-                onChange={handleChange}
-              >
-                <option value="">-- Seleccione un cliente --</option>
-                {clientes.map((c) => (
-                  <option key={c.id_cliente} value={c.id_cliente}>
-                    {c.nombre} {c.apellido} ({c.tipo_documento}: {c.documento})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Total Factura</label>
-              <input
-                type="number"
-                name="total"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]"
-                value={factura.total}
-                onChange={handleChange}
-                placeholder="0.00"
-                step="0.01"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-              <input
-                type="text"
-                name="observaciones"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]"
-                value={factura.observaciones}
-                onChange={handleChange}
-                placeholder="Detalles adicionales opcionales"
-              />
-            </div>
-          </div>
-
-          <button type="submit" className="px-6 py-2 bg-[#2B547E] text-white font-medium rounded-md hover:bg-blue-800 transition shadow-sm">
-            Registrar Factura
-          </button>
-        </form>
       )}
 
-      {/* Tabla de Historial de Facturas */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="p-4 font-semibold text-gray-600">N° Factura</th>
-              <th className="p-4 font-semibold text-gray-600">Cliente ID / Datos</th>
-              <th className="p-4 font-semibold text-gray-600">Fecha</th>
-              <th className="p-4 font-semibold text-gray-600">Total</th>
-              <th className="p-4 font-semibold text-gray-600">Observaciones</th>
+      {mensaje && (
+        <div className={styles.alertSuccess}>
+          {mensaje}
+        </div>
+      )}
+
+      <div className={styles.gridCliente}>
+        <div className={styles.formGroup}>
+          <label>Cliente:</label>
+
+          <select
+            value={idCliente}
+            onChange={seleccionarCliente}
+            className={styles.select}
+          >
+            <option value="">-- Seleccione un cliente --</option>
+
+            {clientes.map((cliente) => (
+              <option
+                key={cliente.id_cliente}
+                value={cliente.id_cliente}
+              >
+                {cliente.nombre} {cliente.apellido}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Identificación:</label>
+
+          <input
+            type="text"
+            value={clienteSeleccionado?.documento || ''}
+            readOnly
+            className={`${styles.input} ${styles.inputReadonly}`}
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Ciudad / Dirección:</label>
+
+          <input
+            type="text"
+            value={clienteSeleccionado?.direccion || ''}
+            readOnly
+            className={`${styles.input} ${styles.inputReadonly}`}
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Email:</label>
+
+          <input
+            type="text"
+            value={clienteSeleccionado?.correo || ''}
+            readOnly
+            className={`${styles.input} ${styles.inputReadonly}`}
+          />
+        </div>
+      </div>
+
+      <div className={`${styles.formGroup} ${styles.asunto}`}>
+        <label>Asunto:</label>
+
+        <input
+          type="text"
+          value={asunto}
+          onChange={(e) => setAsunto(e.target.value)}
+          className={styles.input}
+        />
+      </div>
+
+      <hr className={styles.separador} />
+
+      <div className={styles.gridProductos}>
+        <div className={styles.formGroup}>
+          <label>Producto:</label>
+
+          <select
+            value={idProducto}
+            onChange={(e) => setIdProducto(e.target.value)}
+            className={styles.select}
+          >
+            <option value="">-- Seleccione un producto --</option>
+
+            {productos.map((producto) => (
+              <option
+                key={producto.id_producto}
+                value={producto.id_producto}
+              >
+                {producto.nombre} - {formatoMoneda(producto.precio)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Cantidad:</label>
+
+          <input
+            type="number"
+            min="1"
+            value={cantidad}
+            onChange={(e) => setCantidad(e.target.value)}
+            className={styles.input}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={agregarProducto}
+          className={`${styles.btn} ${styles.btnAgregar}`}
+        >
+          + Agregar
+        </button>
+      </div>
+
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio Unit.</th>
+            <th>Subtotal</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {items.length === 0 ? (
+            <tr>
+              <td
+                colSpan="5"
+                className={styles.empty}
+              >
+                No hay productos agregados
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {lista.map((f) => {
-              // Buscamos los datos completos del cliente para mostrarlos directamente en la lista
-              const datosCliente = clientes.find(c => c.id_cliente === f.id_cliente);
-              return (
-                <tr key={f.id_factura} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                  <td className="p-4 text-gray-500 text-sm">#{f.id_factura}</td>
-                  <td className="p-4 text-gray-800 font-medium">
-                    {datosCliente ? `${datosCliente.nombre} ${datosCliente.apellido}` : `Cliente #${f.id_cliente}`}
-                  </td>
-                  <td className="p-4 text-gray-600 text-sm">
-                    {f.fecha ? new Date(f.fecha).toLocaleString() : 'N/A'}
-                  </td>
-                  <td className="p-4 text-gray-800 font-bold">${f.total}</td>
-                  <td className="p-4 text-gray-600 italic text-sm">
-                    {f.observaciones || 'Sin observaciones'}
-                  </td>
-                </tr>
-              );
-            })}
-            {lista.length === 0 && (
-              <tr>
-                <td colSpan="5" className="p-8 text-center text-gray-400">No hay facturas emitidas aún.</td>
+          ) : (
+            items.map((item) => (
+              <tr key={item.id_producto}>
+                <td>{item.nombre}</td>
+                <td>{item.cantidad}</td>
+                <td>{formatoMoneda(item.precio_unitario)}</td>
+                <td>{formatoMoneda(item.subtotal)}</td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => eliminarProducto(item.id_producto)}
+                    className={`${styles.btn} ${styles.btnEliminar}`}
+                  >
+                    Eliminar
+                  </button>
+                </td>
               </tr>
-            )}
-          </tbody>
-        </table>
+            ))
+          )}
+        </tbody>
+      </table>
+
+      <div className={styles.gridTotales}>
+        <div className={styles.formGroup}>
+          <label>IVA (%):</label>
+
+          <input
+            type="number"
+            min="0"
+            value={iva}
+            onChange={(e) => setIva(e.target.value)}
+            className={styles.input}
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Descuento ($):</label>
+
+          <input
+            type="number"
+            min="0"
+            value={descuento}
+            onChange={(e) => setDescuento(e.target.value)}
+            className={styles.input}
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Total Final:</label>
+
+          <input
+            type="text"
+            value={formatoMoneda(totalFinal)}
+            readOnly
+            className={`${styles.input} ${styles.inputReadonly}`}
+          />
+        </div>
+      </div>
+
+      <div className={styles.accionesFinales}>
+        <button
+          type="button"
+          onClick={guardarFactura}
+          className={`${styles.btn} ${styles.btnGuardar}`}
+        >
+          Guardar y Generar PDF
+        </button>
       </div>
     </div>
   );

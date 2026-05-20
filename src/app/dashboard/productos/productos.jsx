@@ -62,16 +62,16 @@ export default function GestionProductos() {
     setEsEdicion(true);
   };
 
-  const Eliminar = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar este producto?")) return;
+  const Desactivar = async (id) => {
+    if (!window.confirm("¿Estás seguro de desactivar este producto?")) return;
 
     try {
       await fetch(`${API_URL}/${id}`, {
-        method: 'DELETE',
+        method: 'PUT',
       });
       cargaProductos();
     } catch (error) {
-      console.error("Error al eliminar el producto: ", error);
+      console.error("Error al desactivar el producto: ", error);
     }
   };
 
@@ -156,8 +156,8 @@ export default function GestionProductos() {
                   <button onClick={() => IniciarEdicion(m)} className="px-3 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition text-sm font-medium">
                     Editar
                   </button>
-                  <button onClick={() => Eliminar(m.id_producto)} className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition text-sm font-medium">
-                    Eliminar
+                  <button onClick={() => Desactivar(m.id_producto)} className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition text-sm font-medium">
+                    Desactivar
                   </button>
                 </td>
               </tr>

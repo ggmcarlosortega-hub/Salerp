@@ -1,197 +1,475 @@
-"use client";
-import React, { useState, useEffect } from 'react';
+'use client';
 
-// Ajusta las URLs según los puertos reales de tu entorno
-const API_COTIZACION = 'http://localhost:3001/api/cotizacion';
-const API_CLIENTES = 'http://localhost:3001/api/cliente';
+import { useEffect, useRef, useState } from 'react';
+import styles from './css/cotizaciones.module.css';
 
-export default function GestionCotizaciones() {
-  // Estado para el formulario de cotización
-  const [cotizacion, setCotizacion] = useState({ 
-    id_cotizacion: '', 
-    id_cliente: '', 
-    total: '', 
-    observaciones: '' 
-  });
-  
-  const [lista, setLista] = useState([]);
-  const [clientes, setClientes] = useState([]); // <-- Almacena los clientes de la BD
-  const [loading, setLoading] = useState(true);
+export default function Cotizaciones() {
+  const contenedorRef = useRef(null);
+  const [clientes, setClientes] = useState([]);
+  const [productos, setProductos] = useState([]);
 
-  // 1. OBTENER DATOS AL INICIAR
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [idCliente, setIdCliente] = useState('');
+
+  const [asunto, setAsunto] = useState('');
+  const [idProducto, setIdProducto] = useState('');
+  const [cantidad, setCantidad] = useState(1);
+
+  const [items, setItems] = useState([]);
+
+  const [iva, setIva] = useState(0);
+  const [descuento, setDescuento] = useState(0);
+
+  const [mensaje, setMensaje] = useState('');
+  const [error, setError] = useState('');
+
+  const API_URL = 'http://localhost:3001/api/cotizacion';
+
   useEffect(() => {
-    Promise.all([obtenerCotizaciones(), obtenerClientes()])
-      .finally(() => setLoading(false));
+    cargarDatos();
   }, []);
 
-  const obtenerCotizaciones = async () => {
+  const cargarDatos = async () => {
     try {
-      const respuesta = await fetch(API_COTIZACION);
-      if (respuesta.ok) {
-        const datos = await respuesta.json();
-        setLista(datos);
+      setError('');
+
+      const respuesta = await fetch(`${API_URL}/datos`);
+
+      if (!respuesta.ok) {
+        throw new Error('No se pudieron cargar los datos.');
       }
+
+      const data = await respuesta.json();
+
+      setClientes(data.clientes || []);
+      setProductos(data.productos || []);
     } catch (error) {
-      console.error("Error al cargar las cotizaciones:", error);
+      console.error(error);
+      setError(`Error cargando datos: ${error.message}`);
     }
   };
 
-  const obtenerClientes = async () => {
+  const descargarPDF = async (idCotizacion) => {
     try {
-      const respuesta = await fetch(API_CLIENTES);
-      if (respuesta.ok) {
-        const datos = await respuesta.json();
-        setClientes(datos);
+      const response = await fetch(
+        `http://localhost:3001/api/cotizacion/${idCotizacion}/pdf`
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Error generando el PDF');
+        return;
       }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cotizacion-${idCotizacion}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
     } catch (error) {
-      console.error("Error al cargar los clientes:", error);
+      console.error('Error descargando PDF:', error);
+      alert('Error descargando el PDF');
     }
   };
 
-  // Manejador de cambios en los inputs
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setCotizacion({ ...cotizacion, [name]: value });
+  const seleccionarCliente = (e) => {
+    const id = e.target.value;
+    setIdCliente(id);
+
+    const cliente = clientes.find(
+      (c) => Number(c.id_cliente) === Number(id)
+    );
+
+    setClienteSeleccionado(cliente || null);
   };
 
-  // 2. REGISTRAR COTIZACIÓN (POST)
-  const RegistrarCotizacion = async (e) => {
-    e.preventDefault();
-    if (!cotizacion.id_cliente || !cotizacion.total) {
-      alert("El cliente y el total son obligatorios.");
+  const agregarProducto = () => {
+    setError('');
+    setMensaje('');
+
+    if (!idProducto) {
+      setError('Debe seleccionar un producto.');
       return;
     }
 
-    try {
-      const respuesta = await fetch(API_COTIZACION, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id_cliente: parseInt(cotizacion.id_cliente),
-          total: parseFloat(cotizacion.total),
-          observaciones: cotizacion.observaciones
-        })
+    if (!cantidad || Number(cantidad) <= 0) {
+      setError('La cantidad debe ser mayor a 0.');
+      return;
+    }
+
+    const producto = productos.find(
+      (p) => Number(p.id_producto) === Number(idProducto)
+    );
+
+    if (!producto) {
+      setError('Producto no encontrado.');
+      return;
+    }
+
+    const productoYaExiste = items.find(
+      (item) => Number(item.id_producto) === Number(producto.id_producto)
+    );
+
+    if (productoYaExiste) {
+      const nuevosItems = items.map((item) => {
+        if (Number(item.id_producto) === Number(producto.id_producto)) {
+          const nuevaCantidad = Number(item.cantidad) + Number(cantidad);
+
+          return {
+            ...item,
+            cantidad: nuevaCantidad,
+            subtotal: nuevaCantidad * Number(item.precio_unitario)
+          };
+        }
+
+        return item;
       });
 
-      if (respuesta.ok) {
-        setCotizacion({ id_cotizacion: '', id_cliente: '', total: '', observaciones: '' });
-        obtenerCotizaciones();
-      }
-    } catch (error) {
-      console.error("Error al registrar cotización:", error);
+      setItems(nuevosItems);
+    } else {
+      const nuevoItem = {
+        id_producto: producto.id_producto,
+        nombre: producto.nombre,
+        cantidad: Number(cantidad),
+        precio_unitario: Number(producto.precio),
+        subtotal: Number(producto.precio) * Number(cantidad)
+      };
+
+      setItems([...items, nuevoItem]);
     }
+
+    setIdProducto('');
+    setCantidad(1);
   };
 
-  if (loading) {
-    return <div className="p-8 text-center text-gray-500">Cargando datos del módulo...</div>;
+  const eliminarProducto = (id_producto) => {
+    const nuevosItems = items.filter(
+      (item) => Number(item.id_producto) !== Number(id_producto)
+    );
+
+    setItems(nuevosItems);
+  };
+
+  const subtotalGeneral = items.reduce((total, item) => {
+    return total + Number(item.subtotal);
+  }, 0);
+
+  const valorIva = subtotalGeneral * (Number(iva || 0) / 100);
+
+  const totalFinal = subtotalGeneral + valorIva - Number(descuento || 0);
+
+  const formatoMoneda = (valor) => {
+    return Number(valor || 0).toLocaleString('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    });
+  };
+
+  const guardarCotizacion = async () => {
+  try {
+    setError('');
+    setMensaje('');
+
+    if (!idCliente) {
+      setError('Debe seleccionar un cliente.');
+      return;
+    }
+
+    if (items.length === 0) {
+      setError('Debe agregar al menos un producto.');
+      return;
+    }
+
+    if (totalFinal < 0) {
+      setError('El total final no puede ser negativo.');
+      return;
+    }
+
+    const datosCotizacion = {
+      id_cliente: Number(idCliente),
+      asunto,
+      iva: Number(iva || 0),
+      descuento: Number(descuento || 0),
+      items: items.map((item) => ({
+        id_producto: Number(item.id_producto),
+        cantidad: Number(item.cantidad)
+      }))
+    };
+
+    console.log('Datos enviados al backend:', datosCotizacion);
+
+    const respuesta = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(datosCotizacion)
+    });
+
+    const data = await respuesta.json();
+
+    console.log('Respuesta del backend:', data);
+
+    if (!respuesta.ok) {
+      throw new Error(data.error || 'Error guardando la cotización.');
+    }
+
+    const idCotizacion =
+      data?.data?.id_cotizacion ||
+      data?.id_cotizacion ||
+      data?.resultado?.id_cotizacion ||
+      '';
+
+    if (idCotizacion) {
+      setMensaje(`Cotización guardada correctamente. ID: ${idCotizacion}`);
+    } else {
+      setMensaje('Cotización guardada correctamente.');
+    }
+    descargarPDF(idCotizacion);
+    window.scrollTo(0, 0);
+    limpiarFormulario();
+
+  } catch (error) {
+    console.error('Error al guardar cotización:', error);
+    setError(error.message);
   }
+};
+
+  const limpiarFormulario = () => {
+    setIdCliente('');
+    setClienteSeleccionado(null);
+    setAsunto('');
+    setIdProducto('');
+    setCantidad(1);
+    setItems([]);
+    setIva(0);
+    setDescuento(0);
+  };
 
   return (
-    <div className="w-full mt-4 animate-in fade-in duration-500">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Gestión de Cotizaciones</h2>
-      
-      {/* VALIDACIÓN CRÍTICA: Bloqueo si no hay clientes registrados */}
-      {clientes.length === 0 ? (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-xl mb-8 text-center">
-          <p className="font-semibold text-lg">No hay clientes registrados en el sistema.</p>
-          <p className="text-sm mt-1 text-amber-700">
-            Para poder generar una cotización, primero debes registrar al menos un cliente en el módulo correspondiente.
-          </p>
+    <div ref={contenedorRef}className={styles.container}>
+      <h1>Nueva Cotización</h1>
+
+      {error && (
+        <div className={styles.alertError}>
+          {error}
         </div>
-      ) : (
-        /* Formulario habilitado */
-        <form onSubmit={RegistrarCotizacion} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            
-            {/* Dropdown dinámico de Clientes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Seleccionar Cliente</label>
-              <select
-                name="id_cliente"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E] bg-white"
-                value={cotizacion.id_cliente}
-                onChange={handleChange}
-              >
-                <option value="">-- Seleccione un cliente --</option>
-                {clientes.map((c) => (
-                  <option key={c.id_cliente} value={c.id_cliente}>
-                    {c.nombre} {c.apellido} ({c.tipo_documento}: {c.documento})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Total Cotización</label>
-              <input
-                type="number"
-                name="total"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]"
-                value={cotizacion.total}
-                onChange={handleChange}
-                placeholder="0.00"
-                step="0.01"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-              <input
-                type="text"
-                name="observaciones"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]"
-                value={cotizacion.observaciones}
-                onChange={handleChange}
-                placeholder="Detalles o validez de la cotización"
-              />
-            </div>
-          </div>
-
-          <button type="submit" className="px-6 py-2 bg-[#2B547E] text-white font-medium rounded-md hover:bg-blue-800 transition shadow-sm">
-            Registrar Cotización
-          </button>
-        </form>
       )}
 
-      {/* Tabla de Historial de Cotizaciones */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="p-4 font-semibold text-gray-600">N° Cotización</th>
-              <th className="p-4 font-semibold text-gray-600">Cliente / Empresa</th>
-              <th className="p-4 font-semibold text-gray-600">Fecha</th>
-              <th className="p-4 font-semibold text-gray-600">Total</th>
-              <th className="p-4 font-semibold text-gray-600">Observaciones</th>
+      {mensaje && (
+        <div className={styles.alertSuccess}>
+          {mensaje}
+        </div>
+      )}
+
+      <div className={styles.gridCliente}>
+        <div className={styles.formGroup}>
+          <label>Cliente:</label>
+
+          <select
+            value={idCliente}
+            onChange={seleccionarCliente}
+            className={styles.select}
+          >
+            <option value="">-- Seleccione un cliente --</option>
+
+            {clientes.map((cliente) => (
+              <option
+                key={cliente.id_cliente}
+                value={cliente.id_cliente}
+              >
+                {cliente.nombre} {cliente.apellido}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Identificación:</label>
+
+          <input
+            type="text"
+            value={clienteSeleccionado?.documento || ''}
+            readOnly
+            className={`${styles.input} ${styles.inputReadonly}`}
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Ciudad / Dirección:</label>
+
+          <input
+            type="text"
+            value={clienteSeleccionado?.direccion || ''}
+            readOnly
+            className={`${styles.input} ${styles.inputReadonly}`}
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Email:</label>
+
+          <input
+            type="text"
+            value={clienteSeleccionado?.correo || ''}
+            readOnly
+            className={`${styles.input} ${styles.inputReadonly}`}
+          />
+        </div>
+      </div>
+
+      <div className={`${styles.formGroup} ${styles.asunto}`}>
+        <label>Asunto:</label>
+
+        <input
+          type="text"
+          value={asunto}
+          onChange={(e) => setAsunto(e.target.value)}
+          className={styles.input}
+        />
+      </div>
+
+      <hr className={styles.separador} />
+
+      <div className={styles.gridProductos}>
+        <div className={styles.formGroup}>
+          <label>Producto:</label>
+
+          <select
+            value={idProducto}
+            onChange={(e) => setIdProducto(e.target.value)}
+            className={styles.select}
+          >
+            <option value="">-- Seleccione un producto --</option>
+
+            {productos.map((producto) => (
+              <option
+                key={producto.id_producto}
+                value={producto.id_producto}
+              >
+                {producto.nombre} - {formatoMoneda(producto.precio)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Cantidad:</label>
+
+          <input
+            type="number"
+            min="1"
+            value={cantidad}
+            onChange={(e) => setCantidad(e.target.value)}
+            className={styles.input}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={agregarProducto}
+          className={`${styles.btn} ${styles.btnAgregar}`}
+        >
+          + Agregar
+        </button>
+      </div>
+
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio Unit.</th>
+            <th>Subtotal</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {items.length === 0 ? (
+            <tr>
+              <td
+                colSpan="5"
+                className={styles.empty}
+              >
+                No hay productos agregados
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {lista.map((c, index) => {
-              // Cruce de datos para renderizar el nombre del cliente en vez de solo su ID numérico
-              const datosCliente = clientes.find(item => item.id_cliente === (c.idcliente || c.id_cliente));
-              return (
-                <tr key={c.id_cotizacion || index} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                  <td className="p-4 text-gray-500 text-sm">#{c.id_cotizacion || (index + 1)}</td>
-                  <td className="p-4 text-gray-800 font-medium">
-                    {datosCliente ? `${datosCliente.nombre} ${datosCliente.apellido}` : `Cliente #${c.idcliente || c.id_cliente}`}
-                  </td>
-                  <td className="p-4 text-gray-600 text-sm">
-                    {c.fecha ? new Date(c.fecha).toLocaleString() : 'N/A'}
-                  </td>
-                  <td className="p-4 text-gray-800 font-bold">${c.total}</td>
-                  <td className="p-4 text-gray-600 italic text-sm">
-                    {c.observaciones || 'Sin observaciones'}
-                  </td>
-                </tr>
-              );
-            })}
-            {lista.length === 0 && (
-              <tr>
-                <td colSpan="5" className="p-8 text-center text-gray-400">No hay cotizaciones emitidas aún.</td>
+          ) : (
+            items.map((item) => (
+              <tr key={item.id_producto}>
+                <td>{item.nombre}</td>
+                <td>{item.cantidad}</td>
+                <td>{formatoMoneda(item.precio_unitario)}</td>
+                <td>{formatoMoneda(item.subtotal)}</td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => eliminarProducto(item.id_producto)}
+                    className={`${styles.btn} ${styles.btnEliminar}`}
+                  >
+                    Eliminar
+                  </button>
+                </td>
               </tr>
-            )}
-          </tbody>
-        </table>
+            ))
+          )}
+        </tbody>
+      </table>
+
+      <div className={styles.gridTotales}>
+        <div className={styles.formGroup}>
+          <label>IVA (%):</label>
+
+          <input
+            type="number"
+            min="0"
+            value={iva}
+            onChange={(e) => setIva(e.target.value)}
+            className={styles.input}
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Descuento ($):</label>
+
+          <input
+            type="number"
+            min="0"
+            value={descuento}
+            onChange={(e) => setDescuento(e.target.value)}
+            className={styles.input}
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label>Total Final:</label>
+
+          <input
+            type="text"
+            value={formatoMoneda(totalFinal)}
+            readOnly
+            className={`${styles.input} ${styles.inputReadonly}`}
+          />
+        </div>
+      </div>
+
+      <div className={styles.accionesFinales}>
+        <button
+          type="button"
+          onClick={guardarCotizacion}
+          className={`${styles.btn} ${styles.btnGuardar}`}
+        >
+          Guardar y Generar PDF
+        </button>
       </div>
     </div>
   );
