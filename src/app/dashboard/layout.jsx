@@ -23,8 +23,7 @@ const ClienteIcon = () => <Image width={32} height={32} src="/nueva-cuenta.png" 
 const MaquinariaIcon = () => <Image width={32} height={32} src="/excavador.png" alt="maquinaria" />;
 const ProductosIcon = () => <Image width={32} height={32} src="/agregar-producto.png" alt="productos" />;
 const GastoIcon = () => <Image width={32} height={32} src="/gastos.png" alt="gastos" />;
-const FacturaIcon = () => <Image width={32} height={32} src="/factura.png" alt="facturas" />; 
-const CotizacionIcon = () => <Image width={32} height={32} src="/cotizacion.png" alt="cotizaciones" />; 
+const ProveedorIcon = () => <Image width={32} height={32} src="/proveedor.png" alt='proveedor' />;
 
 export default function DashboardLayout({ children }) {
   const appBlue = 'bg-[#2B547E]';
@@ -109,8 +108,7 @@ export default function DashboardLayout({ children }) {
           <SidebarItem href="/dashboard/maquinaria" icon={MaquinariaIcon} label="Maquinaria" title="Estados de la maquinaria" />
           <SidebarItem href="/dashboard/productos" icon={ProductosIcon} label="Productos" title="Detalles de los productos" />
           <SidebarItem href="/dashboard/gastos" icon={GastoIcon} label="Gastos" title="Análisis de los gastos" />
-          <SidebarItem href="/dashboard/facturas" icon={FacturaIcon} label="Facturas" title="Asignar facturas" />
-          <SidebarItem href="/dashboard/cotizacion" icon={CotizacionIcon} label="Cotización" title="Cotizar productos" />
+          <SidebarItem href="/dashboard/proveedor" icon={ProveedorIcon} label="Proveedor" title="Gestion de Proveedor" />
         </aside>
 
       </div>

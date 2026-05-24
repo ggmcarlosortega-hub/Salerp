@@ -1,201 +1,1550 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect, useMemo, useState } from "react";
+import styles from "./css/cliente.module.css";
+
+const API_BASE = "http://localhost:3001";
+const API_CLIENTE = `${API_BASE}/api/cliente`;
+const API_DOCUMENTO = `${API_BASE}/api/documento`;
+
+const clienteInicial = {
+  id_cliente: "",
+  tipo_cliente: "Persona",
+  nombre: "",
+  apellido: "",
+  tipo_documento: "CC",
+  documento: "",
+  telefono: "",
+  direccion: "",
+  correo: "",
+  observacion: "",
+};
+
+const resumenInicial = {
+  total_cotizaciones: 0,
+  total_facturas: 0,
+  total_contratos: 0,
+  total_abonos: 0,
+  total_facturado: 0,
+  total_contratos_valor: 0,
+  total_abonado: 0,
+  saldo_pendiente: 0,
+};
+
+const documentoInicial = {
+  asunto: "",
+  iva: 0,
+  descuento: 0,
+  observaciones: "",
+  condiciones_pago: "Anticipo del 50% del valor total. El restante se cancela a la hora de entregar los productos.",
+  id_producto: "",
+  cantidad: 1,
+  items: [],
+};
+
+const contratoInicial = {
+  id_factura: "",
+  asunto: "",
+  contratista: "CENTRO INDUSTRIAL DE LA MADERA",
+  contratante: "",
+  fecha_inicio: "",
+  fecha_fin: "",
+  valor_total: "",
+  clausulas: "",
+  observacion: "",
+};
+
+const abonoInicial = {
+  id_factura: "",
+  id_contrato: "",
+  monto: "",
+  metodo_pago: "Efectivo",
+  referencia: "",
+  observacion: "",
+  comprobante: null,
+};
 
 export default function GestionClientes() {
-  const [cliente, setCliente] = useState({ 
-    id_cliente: '', nombre: '', apellido: '', tipo_documento: '', 
-    documento: '', telefono: '', direccion: '', correo: ''
-  });
-  
   const [lista, setLista] = useState([]);
-  const [esEdicion, setEsEdicion] = useState(false);
+  const [vistaActual, setVistaActual] = useState("lista");
 
-  // Apuntamos al puerto 4000 (Node) y a la ruta en singular que definiste en server.js
-  const API_URL = 'http://localhost:3001/api/cliente'; 
+  const [cliente, setCliente] = useState(clienteInicial);
+  const [resumen, setResumen] = useState(resumenInicial);
 
-  // 1. GET: Cargar clientes al iniciar la pantalla
+  const [cotizaciones, setCotizaciones] = useState([]);
+  const [facturas, setFacturas] = useState([]);
+  const [contratos, setContratos] = useState([]);
+  const [abonos, setAbonos] = useState([]);
+  const [productos, setProductos] = useState([]);
+
+  const [tipoDocumentos, setTipoDocumentos] = useState("cotizaciones");
+  const [busqueda, setBusqueda] = useState("");
+  const [busquedaDoc, setBusquedaDoc] = useState("");
+  const [menuDocumentoAbierto, setMenuDocumentoAbierto] = useState(null);
+
+  const [modoEdicion, setModoEdicion] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [guardandoDocumento, setGuardandoDocumento] = useState(false);
+
+  const [mostrarModalConfirmacion, setMostrarModalConfirmacion] = useState(false);
+  const [modalDocumento, setModalDocumento] = useState(null); // cotizacion | factura | contrato | abono
+
+  const [documentoForm, setDocumentoForm] = useState(documentoInicial);
+  const [contratoForm, setContratoForm] = useState(contratoInicial);
+  const [abonoForm, setAbonoForm] = useState(abonoInicial);
+
   useEffect(() => {
     cargarClientes();
+    cargarDatosDocumento();
   }, []);
 
-  const cargarClientes = async () => {
+  const formatoMoneda = (valor) => {
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      minimumFractionDigits: 0,
+    }).format(Number(valor || 0));
+  };
+
+  const formatoFecha = (fecha) => {
+    if (!fecha) return "Sin fecha";
+
     try {
-      const response = await fetch(API_URL);
-      if (response.ok) {
-        const data = await response.json();
-        setLista(data); 
-      }
-    } catch (error) {
-      console.error("Error al obtener clientes:", error);
+      return new Date(fecha).toLocaleDateString("es-CO");
+    } catch {
+      return "Sin fecha";
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setCliente({ ...cliente, [name]: value });
+  const nombreCompletoCliente = (item = cliente) => {
+    const nombre = item.nombre || "";
+    const apellido = item.tipo_cliente === "Empresa" ? "" : item.apellido || "";
+    return `${nombre} ${apellido}`.trim() || "Nuevo cliente";
   };
 
-  // 2. POST y PUT: Guardar o Actualizar
-  const Guardar = async (e) => {
+  const getArchivoUrl = (ruta) => {
+    if (!ruta) return "";
+    if (String(ruta).startsWith("http")) return ruta;
+    return `${API_BASE}${ruta}`;
+  };
+
+  const clientesFiltrados = useMemo(() => {
+    const texto = busqueda.toLowerCase();
+
+    return lista.filter((c) => {
+      return (
+        c.nombre?.toLowerCase().includes(texto) ||
+        c.apellido?.toLowerCase().includes(texto) ||
+        c.documento?.toLowerCase().includes(texto) ||
+        c.correo?.toLowerCase().includes(texto) ||
+        c.telefono?.toLowerCase().includes(texto)
+      );
+    });
+  }, [lista, busqueda]);
+
+  const documentosActivos = useMemo(() => {
+    if (tipoDocumentos === "cotizaciones") return cotizaciones;
+    if (tipoDocumentos === "facturas") return facturas;
+    if (tipoDocumentos === "contratos") return contratos;
+    return abonos;
+  }, [tipoDocumentos, cotizaciones, facturas, contratos, abonos]);
+
+  const documentosFiltrados = useMemo(() => {
+    const texto = busquedaDoc.toLowerCase();
+
+    return documentosActivos.filter((doc) => {
+      return (
+        String(doc.id_documento || "").toLowerCase().includes(texto) ||
+        doc.titulo?.toLowerCase().includes(texto) ||
+        doc.estado?.toLowerCase().includes(texto) ||
+        doc.observacion?.toLowerCase().includes(texto) ||
+        String(doc.total || "").includes(texto)
+      );
+    });
+  }, [documentosActivos, busquedaDoc]);
+
+  const subtotalDocumento = useMemo(() => {
+    return documentoForm.items.reduce((total, item) => {
+      return total + Number(item.subtotal || 0);
+    }, 0);
+  }, [documentoForm.items]);
+
+  const ivaDocumento = subtotalDocumento * (Number(documentoForm.iva || 0) / 100);
+  const totalDocumento = subtotalDocumento + ivaDocumento - Number(documentoForm.descuento || 0);
+
+  const documentosParaAbono = useMemo(() => {
+    return {
+      facturas: facturas.filter((f) => Number(f.saldo_pendiente ?? f.total ?? 0) > 0),
+      contratos: contratos.filter((c) => Number(c.saldo_pendiente ?? c.total ?? 0) > 0),
+    };
+  }, [facturas, contratos]);
+
+  const cargarClientes = async () => {
+    try {
+      setCargando(true);
+      setError("");
+
+      const response = await fetch(API_CLIENTE);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al cargar clientes.");
+      }
+
+      setLista(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const cargarDatosDocumento = async () => {
+    try {
+      const response = await fetch(`${API_DOCUMENTO}/datos`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al cargar productos para documentos.");
+      }
+
+      setProductos(data.productos || []);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const cargarDetalleCliente = async (idCliente) => {
+    try {
+      setCargando(true);
+      setError("");
+
+      const response = await fetch(`${API_CLIENTE}/${idCliente}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al cargar detalle del cliente.");
+      }
+
+      setCliente(data.cliente);
+      setResumen(data.resumen || resumenInicial);
+      setCotizaciones(data.cotizaciones || []);
+      setFacturas(data.facturas || []);
+      setContratos(data.contratos || []);
+      setAbonos(data.abonos || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const abrirDetalle = async (item) => {
+    setMensaje("");
+    setError("");
+    setModoEdicion(false);
+    setBusquedaDoc("");
+    setMenuDocumentoAbierto(null);
+    setVistaActual("detalle");
+    await cargarDetalleCliente(item.id_cliente);
+  };
+
+  const nuevoCliente = () => {
+    setCliente(clienteInicial);
+    setResumen(resumenInicial);
+    setCotizaciones([]);
+    setFacturas([]);
+    setContratos([]);
+    setAbonos([]);
+    setModoEdicion(true);
+    setMensaje("");
+    setError("");
+    setVistaActual("detalle");
+  };
+
+  const volverLista = () => {
+    setCliente(clienteInicial);
+    setResumen(resumenInicial);
+    setCotizaciones([]);
+    setFacturas([]);
+    setContratos([]);
+    setAbonos([]);
+    setModoEdicion(false);
+    setVistaActual("lista");
+    cargarClientes();
+  };
+
+  const handleClienteChange = (e) => {
+    const { name, value } = e.target;
+
+    setCliente((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "tipo_cliente" && value === "Empresa" ? { apellido: "", tipo_documento: "NIT" } : {}),
+    }));
+  };
+
+  const guardarCliente = async (e) => {
     e.preventDefault();
-    
-    if (!cliente.nombre || !cliente.documento || !cliente.tipo_documento) {
-      alert('El nombre, el tipo y número de documento son obligatorios');
+
+    setMensaje("");
+    setError("");
+
+    if (!cliente.nombre.trim()) {
+      setError("El nombre del cliente es obligatorio.");
+      return;
+    }
+
+    if (!cliente.tipo_documento || !cliente.documento.trim()) {
+      setError("El tipo de documento y el documento son obligatorios.");
       return;
     }
 
     try {
-      if (esEdicion) {
-        // Petición PUT
-        await fetch(`${API_URL}/${cliente.id_cliente}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(cliente) 
-        });
-      } else {
-        // Petición POST (Se excluye el id_cliente para que MySQL lo genere)
-        const { id_cliente, ...datosNuevoCliente } = cliente;
-        
-        await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(datosNuevoCliente)
-        });
+      const esEdicion = Boolean(cliente.id_cliente);
+
+      const response = await fetch(
+        esEdicion ? `${API_CLIENTE}/${cliente.id_cliente}` : API_CLIENTE,
+        {
+          method: esEdicion ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cliente),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al guardar cliente.");
       }
-      
+
+      setMensaje(
+        esEdicion
+          ? "Cliente actualizado correctamente."
+          : "Cliente registrado correctamente."
+      );
+
+      setModoEdicion(false);
+
+      if (esEdicion) {
+        await cargarDetalleCliente(cliente.id_cliente);
+      } else {
+        await cargarDetalleCliente(data.id_cliente);
+      }
+
       cargarClientes();
-      Cancelar();
-    } catch (error) {
-      console.error("Error al guardar el cliente:", error);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
-  const IniciarEdicion = (c) => {
-    setCliente(c);
-    setEsEdicion(true);
+  const confirmarDesactivacion = async () => {
+    try {
+      setMensaje("");
+      setError("");
+
+      const response = await fetch(`${API_CLIENTE}/${cliente.id_cliente}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al desactivar cliente.");
+      }
+
+      setMostrarModalConfirmacion(false);
+      volverLista();
+    } catch (err) {
+      setError(err.message);
+      setMostrarModalConfirmacion(false);
+    }
   };
 
-  // 3. DELETE: Eliminar
-  const Eliminar = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar este cliente?")) return;
+  const abrirModalDocumento = (tipo) => {
+    setMensaje("");
+    setError("");
+
+    if (!cliente.id_cliente) {
+      setError("Primero debes guardar el cliente para crear documentos.");
+      return;
+    }
+
+    if (tipo === "cotizacion" || tipo === "factura") {
+      setDocumentoForm(documentoInicial);
+    }
+
+    if (tipo === "contrato") {
+      setContratoForm({
+        ...contratoInicial,
+        contratante: nombreCompletoCliente(),
+      });
+    }
+
+    if (tipo === "abono") {
+      setAbonoForm(abonoInicial);
+    }
+
+    setModalDocumento(tipo);
+  };
+
+  const cerrarModalDocumento = () => {
+    setModalDocumento(null);
+    setDocumentoForm(documentoInicial);
+    setContratoForm(contratoInicial);
+    setAbonoForm(abonoInicial);
+    setGuardandoDocumento(false);
+  };
+
+  const handleDocumentoChange = (e) => {
+    const { name, value } = e.target;
+
+    setDocumentoForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const agregarProductoDocumento = () => {
+    setError("");
+    setMensaje("");
+
+    if (!documentoForm.id_producto) {
+      setError("Selecciona un producto.");
+      return;
+    }
+
+    if (!documentoForm.cantidad || Number(documentoForm.cantidad) <= 0) {
+      setError("La cantidad debe ser mayor a cero.");
+      return;
+    }
+
+    const producto = productos.find(
+      (p) => Number(p.id_producto) === Number(documentoForm.id_producto)
+    );
+
+    if (!producto) {
+      setError("Producto no encontrado.");
+      return;
+    }
+
+    const precioUnitario = Number(producto.precio_venta || 0);
+
+    if (precioUnitario <= 0) {
+      setError(`El producto ${producto.nombre} no tiene precio de venta calculado.`);
+      return;
+    }
+
+    const cantidad = Number(documentoForm.cantidad);
+
+    setDocumentoForm((prev) => {
+      const existe = prev.items.find(
+        (item) => Number(item.id_producto) === Number(producto.id_producto)
+      );
+
+      if (existe) {
+        return {
+          ...prev,
+          id_producto: "",
+          cantidad: 1,
+          items: prev.items.map((item) => {
+            if (Number(item.id_producto) !== Number(producto.id_producto)) {
+              return item;
+            }
+
+            const nuevaCantidad = Number(item.cantidad) + cantidad;
+
+            return {
+              ...item,
+              cantidad: nuevaCantidad,
+              subtotal: nuevaCantidad * Number(item.precio_unitario),
+            };
+          }),
+        };
+      }
+
+      return {
+        ...prev,
+        id_producto: "",
+        cantidad: 1,
+        items: [
+          ...prev.items,
+          {
+            id_producto: producto.id_producto,
+            nombre: producto.nombre,
+            tipo_producto: producto.tipo_producto,
+            unidad_medida: producto.unidad_medida,
+            cantidad,
+            precio_unitario: precioUnitario,
+            subtotal: precioUnitario * cantidad,
+          },
+        ],
+      };
+    });
+  };
+
+  const eliminarProductoDocumento = (idProducto) => {
+    setDocumentoForm((prev) => ({
+      ...prev,
+      items: prev.items.filter(
+        (item) => Number(item.id_producto) !== Number(idProducto)
+      ),
+    }));
+  };
+
+  const guardarDocumentoComercial = async () => {
+    const tipo = modalDocumento;
+
+    setMensaje("");
+    setError("");
+
+    if (!cliente.id_cliente) {
+      setError("Primero debes guardar el cliente.");
+      return;
+    }
+
+    if (!documentoForm.items.length) {
+      setError("Debes agregar al menos un producto.");
+      return;
+    }
+
+    if (totalDocumento < 0) {
+      setError("El total no puede ser negativo.");
+      return;
+    }
 
     try {
-      await fetch(`${API_URL}/${id}`, {
-        method: 'DELETE',
+      setGuardandoDocumento(true);
+
+      const endpoint = tipo === "cotizacion" ? "cotizacion" : "factura";
+
+      const payload = {
+        id_cliente: Number(cliente.id_cliente),
+        asunto: documentoForm.asunto,
+        iva: Number(documentoForm.iva || 0),
+        descuento: Number(documentoForm.descuento || 0),
+        observaciones: documentoForm.observaciones,
+        condiciones_pago: documentoForm.condiciones_pago,
+        items: documentoForm.items.map((item) => ({
+          id_producto: Number(item.id_producto),
+          cantidad: Number(item.cantidad),
+        })),
+      };
+
+      const response = await fetch(`${API_DOCUMENTO}/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-      cargarClientes();
-    } catch (error) {
-      console.error("Error al eliminar el cliente:", error);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al guardar documento.");
+      }
+
+      const idDocumento = tipo === "cotizacion" ? data.id_cotizacion : data.id_factura;
+
+      setMensaje(
+        tipo === "cotizacion"
+          ? `Cotización registrada correctamente. ID: ${idDocumento}`
+          : `Factura registrada correctamente. ID: ${idDocumento}`
+      );
+
+      cerrarModalDocumento();
+      await cargarDetalleCliente(cliente.id_cliente);
+      await cargarClientes();
+      abrirPDFDocumento(tipo === "cotizacion" ? "Cotización" : "Factura", idDocumento);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGuardandoDocumento(false);
     }
   };
 
-  const Cancelar = () => {
-    setCliente({ 
-      id_cliente: '', nombre: '', apellido: '', tipo_documento: '', 
-      documento: '', telefono: '', direccion: '', correo: '' 
-    });
-    setEsEdicion(false);
+  const handleContratoChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === "id_factura") {
+      const factura = facturas.find(
+        (f) => Number(f.id_documento) === Number(value)
+      );
+
+      setContratoForm((prev) => ({
+        ...prev,
+        id_factura: value,
+        asunto: factura?.titulo || prev.asunto,
+        valor_total: factura?.total || prev.valor_total,
+      }));
+
+      return;
+    }
+
+    setContratoForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  return (
-    <div className="w-full mt-4 animate-in fade-in duration-500">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Gestión de Clientes</h2>
-      
-      {/* Formulario */}
-      <form onSubmit={Guardar} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-            <input type="text" name="nombre" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]" value={cliente.nombre} onChange={handleChange} placeholder="Nombre del cliente" />
+  const guardarContrato = async () => {
+    setMensaje("");
+    setError("");
+
+    if (!contratoForm.asunto.trim()) {
+      setError("El asunto del contrato es obligatorio.");
+      return;
+    }
+
+    if (!contratoForm.valor_total || Number(contratoForm.valor_total) <= 0) {
+      setError("El valor del contrato debe ser mayor a cero.");
+      return;
+    }
+
+    try {
+      setGuardandoDocumento(true);
+
+      const payload = {
+        id_cliente: Number(cliente.id_cliente),
+        id_factura: contratoForm.id_factura || null,
+        asunto: contratoForm.asunto,
+        contratista: contratoForm.contratista,
+        contratante: contratoForm.contratante || nombreCompletoCliente(),
+        fecha_inicio: contratoForm.fecha_inicio || null,
+        fecha_fin: contratoForm.fecha_fin || null,
+        valor_total: Number(contratoForm.valor_total || 0),
+        clausulas: contratoForm.clausulas,
+        observacion: contratoForm.observacion,
+      };
+
+      const response = await fetch(`${API_DOCUMENTO}/contrato`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al registrar contrato.");
+      }
+
+      setMensaje(`Contrato registrado correctamente. ID: ${data.id_contrato}`);
+      cerrarModalDocumento();
+      await cargarDetalleCliente(cliente.id_cliente);
+      await cargarClientes();
+      abrirPDFDocumento("Contrato", data.id_contrato);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGuardandoDocumento(false);
+    }
+  };
+
+  const handleAbonoChange = (e) => {
+    const { name, value, files } = e.target;
+
+    if (name === "id_factura") {
+      setAbonoForm((prev) => ({
+        ...prev,
+        id_factura: value,
+        id_contrato: value ? "" : prev.id_contrato,
+      }));
+      return;
+    }
+
+    if (name === "id_contrato") {
+      setAbonoForm((prev) => ({
+        ...prev,
+        id_contrato: value,
+        id_factura: value ? "" : prev.id_factura,
+      }));
+      return;
+    }
+
+    if (name === "comprobante") {
+      setAbonoForm((prev) => ({
+        ...prev,
+        comprobante: files?.[0] || null,
+      }));
+      return;
+    }
+
+    setAbonoForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const guardarAbono = async () => {
+    setMensaje("");
+    setError("");
+
+    if (!abonoForm.id_factura && !abonoForm.id_contrato) {
+      setError("Selecciona una factura o un contrato para aplicar el abono.");
+      return;
+    }
+
+    if (!abonoForm.monto || Number(abonoForm.monto) <= 0) {
+      setError("El monto del abono debe ser mayor a cero.");
+      return;
+    }
+
+    try {
+      setGuardandoDocumento(true);
+
+      const formData = new FormData();
+      formData.append("id_cliente", cliente.id_cliente);
+      formData.append("id_factura", abonoForm.id_factura || "");
+      formData.append("id_contrato", abonoForm.id_contrato || "");
+      formData.append("monto", abonoForm.monto);
+      formData.append("metodo_pago", abonoForm.metodo_pago);
+      formData.append("referencia", abonoForm.referencia || "");
+      formData.append("observacion", abonoForm.observacion || "");
+
+      if (abonoForm.comprobante) {
+        formData.append("comprobante", abonoForm.comprobante);
+      }
+
+      const response = await fetch(`${API_DOCUMENTO}/abono`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al registrar abono.");
+      }
+
+      setMensaje(`Abono registrado correctamente. ID: ${data.id_abono}`);
+      cerrarModalDocumento();
+      await cargarDetalleCliente(cliente.id_cliente);
+      await cargarClientes();
+      abrirPDFDocumento("Abono", data.id_abono);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGuardandoDocumento(false);
+    }
+  };
+
+  const abrirPDFDocumento = (tipo, id) => {
+    if (!id) return;
+
+    const rutas = {
+      Cotización: `${API_DOCUMENTO}/cotizacion/${id}/pdf`,
+      Factura: `${API_DOCUMENTO}/factura/${id}/pdf`,
+      Contrato: `${API_DOCUMENTO}/contrato/${id}/pdf`,
+      Abono: `${API_DOCUMENTO}/abono/${id}/pdf`,
+    };
+
+    if (rutas[tipo]) {
+      window.open(rutas[tipo], "_blank");
+    }
+  };
+
+  const accionDocumento = (accion, doc) => {
+    setMenuDocumentoAbierto(null);
+
+    if (accion === "pdf") {
+      if (doc.tipo_documento === "Abono" && doc.imagen_comprobante) {
+        window.open(getArchivoUrl(doc.imagen_comprobante), "_blank");
+        return;
+      }
+
+      abrirPDFDocumento(doc.tipo_documento, doc.id_documento);
+      return;
+    }
+
+    setMensaje(
+      `La acción "${accion}" para ${doc.tipo_documento || "documento"} #${doc.id_documento} queda preparada para conectarla con actualización/desactivación.`
+    );
+  };
+
+  const tituloDocumentos = {
+    cotizaciones: "Cotizaciones",
+    facturas: "Facturas",
+    contratos: "Contratos",
+    abonos: "Abonos",
+  };
+
+  const renderModalDocumentoComercial = () => {
+    const esCotizacion = modalDocumento === "cotizacion";
+    const titulo = esCotizacion ? "Nueva cotización" : "Nueva factura";
+    const subtitulo = esCotizacion
+      ? "La cotización no descuenta inventario. Solo reserva la información comercial."
+      : "La factura registra la venta y descuenta inventario según productos y recetas.";
+
+    return (
+      <div className={styles["modal-overlay"]}>
+        <div className={`${styles["modal"]} ${styles["modal-xl"]}`}>
+          <div className={styles["modal-header"]}>
+            <div>
+              <span className={styles["modal-badge"]}>{esCotizacion ? "Cotización" : "Factura"}</span>
+              <h3>{titulo}</h3>
+              <p>{subtitulo}</p>
+            </div>
+
+            <button type="button" onClick={cerrarModalDocumento} className={styles["btn-close"]}>×</button>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
-            <input type="text" name="apellido" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]" value={cliente.apellido} onChange={handleChange} placeholder="Apellido" />
+
+          <div className={styles["modal-body-grid"]}>
+            <section className={styles["modal-section"]}>
+              <h4>Datos del documento</h4>
+
+              <div className={styles["mini-grid"]}>
+                <div className={styles["field-full"]}>
+                  <label>Cliente</label>
+                  <input type="text" value={nombreCompletoCliente()} disabled />
+                </div>
+
+                <div className={styles["field-full"]}>
+                  <label>Asunto</label>
+                  <input
+                    type="text"
+                    name="asunto"
+                    value={documentoForm.asunto}
+                    onChange={handleDocumentoChange}
+                    placeholder="Ej: Fabricación de puertas, venta de productos..."
+                  />
+                </div>
+
+                <div>
+                  <label>IVA (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="iva"
+                    value={documentoForm.iva}
+                    onChange={handleDocumentoChange}
+                  />
+                </div>
+
+                <div>
+                  <label>Descuento ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="descuento"
+                    value={documentoForm.descuento}
+                    onChange={handleDocumentoChange}
+                  />
+                </div>
+
+                <div className={styles["field-full"]}>
+                  <label>{esCotizacion ? "Observaciones" : "Observaciones de la factura"}</label>
+                  <textarea
+                    name="observaciones"
+                    value={documentoForm.observaciones}
+                    onChange={handleDocumentoChange}
+                    placeholder="Notas que aparecerán en el documento..."
+                  />
+                </div>
+
+                {esCotizacion && (
+                  <div className={styles["field-full"]}>
+                    <label>Condiciones de pago</label>
+                    <textarea
+                      name="condiciones_pago"
+                      value={documentoForm.condiciones_pago}
+                      onChange={handleDocumentoChange}
+                    />
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className={styles["modal-section"]}>
+              <h4>Agregar productos</h4>
+
+              <div className={styles["add-product-row"]}>
+                <div>
+                  <label>Producto</label>
+                  <select
+                    name="id_producto"
+                    value={documentoForm.id_producto}
+                    onChange={handleDocumentoChange}
+                  >
+                    <option value="">Seleccionar producto</option>
+                    {productos.map((p) => (
+                      <option key={p.id_producto} value={p.id_producto}>
+                        {p.nombre} - {formatoMoneda(p.precio_venta)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label>Cantidad</label>
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    name="cantidad"
+                    value={documentoForm.cantidad}
+                    onChange={handleDocumentoChange}
+                  />
+                </div>
+
+                <button type="button" onClick={agregarProductoDocumento} className={styles["btn-primary"]}>
+                  + Agregar
+                </button>
+              </div>
+
+              <div className={styles["modal-table-wrap"]}>
+                <table className={styles["table"]}>
+                  <thead>
+                    <tr>
+                      <th>Producto</th>
+                      <th>Cantidad</th>
+                      <th>Precio</th>
+                      <th>Subtotal</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {documentoForm.items.map((item) => (
+                      <tr key={item.id_producto}>
+                        <td>
+                          <strong>{item.nombre}</strong>
+                          <span>{item.tipo_producto} · {item.unidad_medida || "Unidad"}</span>
+                        </td>
+                        <td>{Number(item.cantidad || 0).toFixed(3)}</td>
+                        <td>{formatoMoneda(item.precio_unitario)}</td>
+                        <td><strong>{formatoMoneda(item.subtotal)}</strong></td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => eliminarProductoDocumento(item.id_producto)}
+                            className={styles["btn-delete-small"]}
+                          >
+                            Quitar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {documentoForm.items.length === 0 && (
+                      <tr>
+                        <td colSpan="5" className={styles["empty"]}>No hay productos agregados.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className={styles["totals-panel"]}>
+                <div><span>Subtotal</span><strong>{formatoMoneda(subtotalDocumento)}</strong></div>
+                <div><span>IVA</span><strong>{formatoMoneda(ivaDocumento)}</strong></div>
+                <div><span>Descuento</span><strong>{formatoMoneda(documentoForm.descuento)}</strong></div>
+                <div className={styles["total-final"]}><span>Total</span><strong>{formatoMoneda(totalDocumento)}</strong></div>
+              </div>
+            </section>
+          </div>
+
+          <div className={styles["modal-actions"]}>
+            <button type="button" onClick={cerrarModalDocumento} className={styles["btn-light"]}>Cancelar</button>
+            <button type="button" onClick={guardarDocumentoComercial} className={styles["btn-primary"]} disabled={guardandoDocumento}>
+              {guardandoDocumento ? "Guardando..." : `Guardar ${esCotizacion ? "cotización" : "factura"}`}
+            </button>
           </div>
         </div>
+      </div>
+    );
+  };
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+  const renderModalContrato = () => (
+    <div className={styles["modal-overlay"]}>
+      <div className={`${styles["modal"]} ${styles["modal-lg"]}`}>
+        <div className={styles["modal-header"]}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
-            <select name="tipo_documento" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E] bg-white" value={cliente.tipo_documento} onChange={handleChange}>
-              <option value="">Seleccione...</option>
-              <option value="NIT">NIT</option>
-              <option value="CC">CC</option>
-              <option value="CE">CE</option>
+            <span className={styles["modal-badge"]}>Contrato</span>
+            <h3>Nuevo contrato</h3>
+            <p>Genera un contrato de obra menor para este cliente. Puede relacionarse con una factura.</p>
+          </div>
+          <button type="button" onClick={cerrarModalDocumento} className={styles["btn-close"]}>×</button>
+        </div>
+
+        <div className={styles["mini-grid"]}>
+          <div className={styles["field-full"]}>
+            <label>Relacionar factura opcional</label>
+            <select name="id_factura" value={contratoForm.id_factura} onChange={handleContratoChange}>
+              <option value="">Sin factura relacionada</option>
+              {facturas.map((f) => (
+                <option key={f.id_documento} value={f.id_documento}>
+                  Factura #{f.id_documento} - {formatoMoneda(f.total)}
+                </option>
+              ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Documento</label>
-            <input type="text" name="documento" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]" value={cliente.documento} onChange={handleChange} placeholder="Número" />
+
+          <div className={styles["field-full"]}>
+            <label>Objeto / asunto</label>
+            <input name="asunto" value={contratoForm.asunto} onChange={handleContratoChange} placeholder="Ej: Fabricación e instalación de puertas..." />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-            <input type="text" name="telefono" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]" value={cliente.telefono} onChange={handleChange} placeholder="Contacto" />
+            <label>Contratista</label>
+            <input name="contratista" value={contratoForm.contratista} onChange={handleContratoChange} />
+          </div>
+
+          <div>
+            <label>Contratante</label>
+            <input name="contratante" value={contratoForm.contratante} onChange={handleContratoChange} />
+          </div>
+
+          <div>
+            <label>Fecha inicio</label>
+            <input type="date" name="fecha_inicio" value={contratoForm.fecha_inicio} onChange={handleContratoChange} />
+          </div>
+
+          <div>
+            <label>Fecha fin</label>
+            <input type="date" name="fecha_fin" value={contratoForm.fecha_fin} onChange={handleContratoChange} />
+          </div>
+
+          <div>
+            <label>Valor total</label>
+            <input type="number" name="valor_total" value={contratoForm.valor_total} onChange={handleContratoChange} placeholder="0" />
+          </div>
+
+          <div className={styles["field-full"]}>
+            <label>Cláusulas adicionales</label>
+            <textarea name="clausulas" value={contratoForm.clausulas} onChange={handleContratoChange} placeholder="Escribe cláusulas adicionales si las necesitas..." />
+          </div>
+
+          <div className={styles["field-full"]}>
+            <label>Observación interna</label>
+            <textarea name="observacion" value={contratoForm.observacion} onChange={handleContratoChange} placeholder="Notas internas del contrato..." />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-            <input type="text" name="direccion" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]" value={cliente.direccion} onChange={handleChange} placeholder="Dirección física" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
-            <input type="email" name="correo" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]" value={cliente.correo} onChange={handleChange} placeholder="correo@ejemplo.com" />
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button type="submit" className="px-6 py-2 bg-[#2B547E] text-white font-medium rounded-md hover:bg-blue-800 transition shadow-sm">
-            {!esEdicion ? "Registrar Cliente" : "Actualizar Cliente"}
+        <div className={styles["modal-actions"]}>
+          <button type="button" onClick={cerrarModalDocumento} className={styles["btn-light"]}>Cancelar</button>
+          <button type="button" onClick={guardarContrato} className={styles["btn-primary"]} disabled={guardandoDocumento}>
+            {guardandoDocumento ? "Guardando..." : "Guardar contrato"}
           </button>
-          {esEdicion && (
-            <button type="button" className="px-6 py-2 bg-gray-200 text-gray-700 font-medium rounded-md hover:bg-gray-300 transition" onClick={Cancelar}>
-              Cancelar
-            </button>
-          )}
         </div>
-      </form>
-
-      {/* Tabla de Registros */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="p-4 font-semibold text-gray-600">Nombre Completo</th>
-              <th className="p-4 font-semibold text-gray-600">Documento</th>
-              <th className="p-4 font-semibold text-gray-600">Contacto</th>
-              <th className="p-4 font-semibold text-gray-600 text-center">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lista.map((c) => (
-              <tr key={c.id_cliente} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                <td className="p-4 text-gray-800 font-medium">{c.nombre} {c.apellido}</td>
-                <td className="p-4 text-gray-600">
-                  <span className="font-semibold text-gray-700">{c.tipo_documento}:</span> {c.documento}
-                </td>
-                <td className="p-4 text-gray-600 text-sm">
-                  {c.telefono} <br/>
-                  <span className="text-gray-400">{c.correo}</span>
-                </td>
-                <td className="p-4 flex justify-center gap-2">
-                  <button onClick={() => IniciarEdicion(c)} className="px-3 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition text-sm font-medium">Editar</button>
-                  <button onClick={() => Eliminar(c.id_cliente)} className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition text-sm font-medium">Eliminar</button>
-                </td>
-              </tr>
-            ))}
-            {lista.length === 0 && (
-              <tr>
-                <td colSpan="4" className="p-8 text-center text-gray-400">
-                  Cargando clientes o no hay registros...
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
       </div>
+    </div>
+  );
+
+  const renderModalAbono = () => (
+    <div className={styles["modal-overlay"]}>
+      <div className={`${styles["modal"]} ${styles["modal-lg"]}`}>
+        <div className={styles["modal-header"]}>
+          <div>
+            <span className={styles["modal-badge"]}>Abono</span>
+            <h3>Registrar abono</h3>
+            <p>Registra pagos parciales o totales sobre facturas o contratos del cliente.</p>
+          </div>
+          <button type="button" onClick={cerrarModalDocumento} className={styles["btn-close"]}>×</button>
+        </div>
+
+        <div className={styles["mini-grid"]}>
+          <div>
+            <label>Factura</label>
+            <select name="id_factura" value={abonoForm.id_factura} onChange={handleAbonoChange} disabled={Boolean(abonoForm.id_contrato)}>
+              <option value="">Sin factura</option>
+              {documentosParaAbono.facturas.map((f) => (
+                <option key={f.id_documento} value={f.id_documento}>
+                  Factura #{f.id_documento} - Saldo {formatoMoneda(f.saldo_pendiente ?? f.total)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label>Contrato</label>
+            <select name="id_contrato" value={abonoForm.id_contrato} onChange={handleAbonoChange} disabled={Boolean(abonoForm.id_factura)}>
+              <option value="">Sin contrato</option>
+              {documentosParaAbono.contratos.map((c) => (
+                <option key={c.id_documento} value={c.id_documento}>
+                  Contrato #{c.id_documento} - Saldo {formatoMoneda(c.saldo_pendiente ?? c.total)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label>Monto</label>
+            <input type="number" name="monto" value={abonoForm.monto} onChange={handleAbonoChange} placeholder="0" />
+          </div>
+
+          <div>
+            <label>Método de pago</label>
+            <select name="metodo_pago" value={abonoForm.metodo_pago} onChange={handleAbonoChange}>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Transferencia">Transferencia</option>
+              <option value="Tarjeta">Tarjeta</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Referencia</label>
+            <input name="referencia" value={abonoForm.referencia} onChange={handleAbonoChange} placeholder="N° transferencia, recibo, nota..." />
+          </div>
+
+          <div>
+            <label>Comprobante</label>
+            <input type="file" name="comprobante" accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf" onChange={handleAbonoChange} />
+          </div>
+
+          <div className={styles["field-full"]}>
+            <label>Observación</label>
+            <textarea name="observacion" value={abonoForm.observacion} onChange={handleAbonoChange} placeholder="Detalles del pago o comprobante..." />
+          </div>
+        </div>
+
+        <div className={styles["modal-actions"]}>
+          <button type="button" onClick={cerrarModalDocumento} className={styles["btn-light"]}>Cancelar</button>
+          <button type="button" onClick={guardarAbono} className={styles["btn-primary"]} disabled={guardandoDocumento}>
+            {guardandoDocumento ? "Guardando..." : "Registrar abono"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={styles["page"]}>
+      {mensaje && <div className={styles["alerta-exito"]}>{mensaje}</div>}
+      {error && <div className={styles["alerta-error"]}>{error}</div>}
+
+      {vistaActual === "lista" && (
+        <>
+          <section className={styles["hero"]}>
+            <div>
+              <span className={styles["hero-badge"]}>Relación comercial</span>
+              <h1>Gestión de clientes</h1>
+              <p>
+                Administra clientes, cotizaciones, facturas, contratos, abonos y saldo pendiente en un solo lugar.
+              </p>
+            </div>
+
+            <button onClick={nuevoCliente} className={styles["btn-hero"]}>
+              + Nuevo cliente
+            </button>
+          </section>
+
+          <section className={styles["panel"]}>
+            <div className={styles["panel-header"]}>
+              <div>
+                <h2>Clientes registrados</h2>
+                <p>Consulta información general y estado comercial de cada cliente.</p>
+              </div>
+
+              <div className={styles["search-box"]}>
+                <span>⌕</span>
+                <input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className={styles["table-wrap"]}>
+              <table className={styles["table"]}>
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Documento</th>
+                    <th>Contacto</th>
+                    <th>Facturado</th>
+                    <th>Saldo</th>
+                    <th>Documentos</th>
+                    <th></th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {clientesFiltrados.map((item) => (
+                    <tr key={item.id_cliente} onClick={() => abrirDetalle(item)}>
+                      <td>
+                        <div className={styles["client-cell"]}>
+                          <div className={styles["client-icon"]}>
+                            {item.nombre?.charAt(0)?.toUpperCase() || "C"}
+                          </div>
+
+                          <div>
+                            <strong>{nombreCompletoCliente(item)}</strong>
+                            <span>{item.correo || "Sin correo registrado"}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        <strong>{item.tipo_documento || "Doc"}: {item.documento}</strong>
+                        <span>{item.tipo_cliente || "Persona"}</span>
+                      </td>
+
+                      <td>
+                        <strong>{item.telefono || "Sin teléfono"}</strong>
+                        <span>{item.direccion || "Sin dirección"}</span>
+                      </td>
+
+                      <td>{formatoMoneda(item.resumen?.total_facturado)}</td>
+
+                      <td>
+                        <span
+                          className={
+                            Number(item.resumen?.saldo_pendiente || 0) > 0
+                              ? styles["pill-danger"]
+                              : styles["pill-success"]
+                          }
+                        >
+                          {formatoMoneda(item.resumen?.saldo_pendiente)}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className={styles["pill-blue"]}>
+                          {(item.resumen?.total_cotizaciones || 0) +
+                            (item.resumen?.total_facturas || 0) +
+                            (item.resumen?.total_contratos || 0) +
+                            (item.resumen?.total_abonos || 0)}{" "}
+                          registros
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          className={styles["btn-table"]}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirDetalle(item);
+                          }}
+                        >
+                          Ver historial
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {!cargando && clientesFiltrados.length === 0 && (
+                    <tr>
+                      <td colSpan="7" className={styles["empty"]}>
+                        No hay clientes registrados.
+                      </td>
+                    </tr>
+                  )}
+
+                  {cargando && (
+                    <tr>
+                      <td colSpan="7" className={styles["empty"]}>
+                        Cargando clientes...
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
+
+      {vistaActual === "detalle" && (
+        <>
+          <button onClick={volverLista} className={styles["back-btn"]}>
+            ← Volver a clientes
+          </button>
+
+          <section className={styles["detail-hero"]}>
+            <div className={styles["detail-title"]}>
+              <div className={styles["big-icon"]}>
+                {cliente.nombre?.charAt(0)?.toUpperCase() || "C"}
+              </div>
+
+              <div>
+                <span>{cliente.tipo_cliente || "Cliente"}</span>
+                <h1>{nombreCompletoCliente()}</h1>
+                <p>
+                  {cliente.tipo_documento || "Doc"} {cliente.documento || "Sin documento"} ·{" "}
+                  {cliente.telefono || "Sin teléfono"}
+                </p>
+              </div>
+            </div>
+
+            <div className={styles["detail-actions"]}>
+              {cliente.id_cliente && !modoEdicion && (
+                <>
+                  <button type="button" onClick={() => setModoEdicion(true)} className={styles["btn-secondary"]}>
+                    Editar cliente
+                  </button>
+
+                  <button type="button" onClick={() => setMostrarModalConfirmacion(true)} className={styles["btn-danger"]}>
+                    Desactivar
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+
+          <section className={styles["summary-grid"]}>
+            <article className={styles["summary-card"]}>
+              <span>Total facturado</span>
+              <strong>{formatoMoneda(resumen.total_facturado)}</strong>
+              <small>Ventas registradas al cliente</small>
+            </article>
+
+            <article className={styles["summary-card"]}>
+              <span>Saldo pendiente</span>
+              <strong>{formatoMoneda(resumen.saldo_pendiente)}</strong>
+              <small>Facturas y contratos por cobrar</small>
+            </article>
+
+            <article className={styles["summary-card"]}>
+              <span>Abonos</span>
+              <strong>{formatoMoneda(resumen.total_abonado)}</strong>
+              <small>Pagos registrados</small>
+            </article>
+
+            <article className={styles["summary-card"]}>
+              <span>Documentos</span>
+              <strong>
+                {Number(resumen.total_cotizaciones || 0) +
+                  Number(resumen.total_facturas || 0) +
+                  Number(resumen.total_contratos || 0) +
+                  Number(resumen.total_abonos || 0)}
+              </strong>
+              <small>Historial comercial</small>
+            </article>
+          </section>
+
+          <section className={styles["content-grid"]}>
+            <form onSubmit={guardarCliente} className={styles["card"]}>
+              <div className={styles["card-header"]}>
+                <div>
+                  <h2>Información del cliente</h2>
+                  <p>Datos principales para cotizaciones, facturas, contratos y abonos.</p>
+                </div>
+              </div>
+
+              <div className={styles["form-grid"]}>
+                <div>
+                  <label>Tipo de cliente</label>
+                  <select name="tipo_cliente" value={cliente.tipo_cliente || "Persona"} onChange={handleClienteChange} disabled={!modoEdicion}>
+                    <option value="Persona">Persona</option>
+                    <option value="Empresa">Empresa</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Tipo documento</label>
+                  <select name="tipo_documento" value={cliente.tipo_documento || "CC"} onChange={handleClienteChange} disabled={!modoEdicion}>
+                    <option value="CC">CC</option>
+                    <option value="CE">CE</option>
+                    <option value="NIT">NIT</option>
+                    <option value="PAS">Pasaporte</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Documento</label>
+                  <input type="text" name="documento" value={cliente.documento || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Documento" />
+                </div>
+
+                <div className={styles["field-large"]}>
+                  <label>Nombre / Razón social</label>
+                  <input type="text" name="nombre" value={cliente.nombre || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Nombre del cliente" />
+                </div>
+
+                <div>
+                  <label>Apellido</label>
+                  <input type="text" name="apellido" value={cliente.apellido || ""} onChange={handleClienteChange} disabled={!modoEdicion || cliente.tipo_cliente === "Empresa"} placeholder="Apellido" />
+                </div>
+
+                <div>
+                  <label>Teléfono</label>
+                  <input type="text" name="telefono" value={cliente.telefono || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Teléfono" />
+                </div>
+
+                <div>
+                  <label>Correo</label>
+                  <input type="email" name="correo" value={cliente.correo || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="correo@cliente.com" />
+                </div>
+
+                <div className={styles["field-full"]}>
+                  <label>Dirección</label>
+                  <input type="text" name="direccion" value={cliente.direccion || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Dirección" />
+                </div>
+
+                <div className={styles["field-full"]}>
+                  <label>Observación</label>
+                  <textarea name="observacion" value={cliente.observacion || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Notas internas del cliente..." />
+                </div>
+              </div>
+
+              {modoEdicion && (
+                <div className={styles["form-actions"]}>
+                  <button type="submit" className={styles["btn-primary"]}>Guardar cliente</button>
+
+                  {cliente.id_cliente && (
+                    <button type="button" onClick={() => setModoEdicion(false)} className={styles["btn-light"]}>Cancelar</button>
+                  )}
+                </div>
+              )}
+            </form>
+
+            <section className={styles["card"]}>
+              <div className={styles["card-header"]}>
+                <div>
+                  <h2>Acciones rápidas</h2>
+                  <p>Crea documentos asociados directamente a este cliente.</p>
+                </div>
+              </div>
+
+              <div className={styles["quick-actions"]}>
+                <button type="button" onClick={() => abrirModalDocumento("cotizacion")} className={styles["quick-card"]}>
+                  <span>＋</span>
+                  <div><strong>Nueva cotización</strong><small>No descuenta inventario</small></div>
+                </button>
+
+                <button type="button" onClick={() => abrirModalDocumento("factura")} className={styles["quick-card"]}>
+                  <span>＋</span>
+                  <div><strong>Nueva factura</strong><small>Descuenta inventario</small></div>
+                </button>
+
+                <button type="button" onClick={() => abrirModalDocumento("contrato")} className={styles["quick-card"]}>
+                  <span>＋</span>
+                  <div><strong>Nuevo contrato</strong><small>Puede salir desde factura</small></div>
+                </button>
+
+                <button type="button" onClick={() => abrirModalDocumento("abono")} className={styles["quick-card"]}>
+                  <span>＋</span>
+                  <div><strong>Registrar abono</strong><small>Pago o comprobante</small></div>
+                </button>
+              </div>
+            </section>
+          </section>
+
+          <section className={styles["card"]}>
+            <div className={styles["card-header"]}>
+              <div>
+                <h2>Historial del cliente</h2>
+                <p>Cotizaciones, facturas, contratos y abonos relacionados con este cliente.</p>
+              </div>
+
+              <div className={styles["doc-toolbar"]}>
+                <select
+                  value={tipoDocumentos}
+                  onChange={(e) => {
+                    setTipoDocumentos(e.target.value);
+                    setBusquedaDoc("");
+                    setMenuDocumentoAbierto(null);
+                  }}
+                >
+                  <option value="cotizaciones">Cotizaciones</option>
+                  <option value="facturas">Facturas</option>
+                  <option value="contratos">Contratos</option>
+                  <option value="abonos">Abonos</option>
+                </select>
+
+                <input type="text" placeholder={`Buscar en ${tituloDocumentos[tipoDocumentos]}...`} value={busquedaDoc} onChange={(e) => setBusquedaDoc(e.target.value)} />
+              </div>
+            </div>
+
+            <div className={styles["table-wrap"]}>
+              <table className={styles["table"]}>
+                <thead>
+                  <tr>
+                    <th>Documento</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Total / Monto</th>
+                    <th>Observación</th>
+                    <th></th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {documentosFiltrados.map((doc) => (
+                    <tr key={`${tipoDocumentos}-${doc.id_documento}`}>
+                      <td>
+                        <strong>{doc.tipo_documento} #{doc.id_documento}</strong>
+                        <span>{doc.titulo || "Sin asunto"}</span>
+                      </td>
+
+                      <td>{formatoFecha(doc.fecha)}</td>
+
+                      <td>
+                        <span
+                          className={
+                            doc.estado === "Pagada" ||
+                            doc.estado === "Aceptada" ||
+                            doc.estado === "Activo" ||
+                            doc.estado === "Efectivo"
+                              ? styles["pill-success"]
+                              : styles["pill-blue"]
+                          }
+                        >
+                          {doc.estado || "Sin estado"}
+                        </span>
+                      </td>
+
+                      <td><strong>{formatoMoneda(doc.total)}</strong></td>
+
+                      <td>{doc.observacion || "Sin observación"}</td>
+
+                      <td className={styles["actions-cell"]}>
+                        <button
+                          type="button"
+                          className={styles["btn-dots"]}
+                          onClick={() => setMenuDocumentoAbierto(menuDocumentoAbierto === `${tipoDocumentos}-${doc.id_documento}` ? null : `${tipoDocumentos}-${doc.id_documento}`)}
+                        >
+                          ⋮
+                        </button>
+
+                        {menuDocumentoAbierto === `${tipoDocumentos}-${doc.id_documento}` && (
+                          <div className={styles["doc-menu"]}>
+                            <button type="button" onClick={() => accionDocumento("modificar", doc)}>Modificar</button>
+                            <button type="button" onClick={() => accionDocumento("desactivar", doc)}>Desactivar</button>
+                            <button type="button" onClick={() => accionDocumento("pdf", doc)}>
+                              {doc.tipo_documento === "Abono" ? "Ver comprobante" : "Ver PDF"}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+
+                  {documentosFiltrados.length === 0 && (
+                    <tr>
+                      <td colSpan="6" className={styles["empty"]}>
+                        No hay {tituloDocumentos[tipoDocumentos].toLowerCase()} registrados para este cliente.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
+      )}
+
+      {mostrarModalConfirmacion && (
+        <div className={styles["modal-overlay"]}>
+          <div className={styles["modal"]}>
+            <h3>Desactivar cliente</h3>
+            <p>¿Seguro que deseas desactivar a <strong>{nombreCompletoCliente()}</strong>? El cliente dejará de aparecer en la lista principal.</p>
+
+            <div className={styles["modal-actions"]}>
+              <button onClick={() => setMostrarModalConfirmacion(false)} className={styles["btn-light"]}>Cancelar</button>
+              <button onClick={confirmarDesactivacion} className={styles["btn-danger"]}>Sí, desactivar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(modalDocumento === "cotizacion" || modalDocumento === "factura") && renderModalDocumentoComercial()}
+      {modalDocumento === "contrato" && renderModalContrato()}
+      {modalDocumento === "abono" && renderModalAbono()}
     </div>
   );
 }
