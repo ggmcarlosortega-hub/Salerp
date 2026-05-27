@@ -59,6 +59,7 @@ export default function GestionProductos() {
 
   const [modoEdicion, setModoEdicion] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  const [categoriaFiltro, setCategoriaFiltro] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -99,14 +100,14 @@ export default function GestionProductos() {
   const productosFiltrados = useMemo(() => {
     const texto = busqueda.toLowerCase();
     return lista.filter((p) => {
-      return (
+      const coincideTexto =
         p.nombre?.toLowerCase().includes(texto) ||
         p.descripcion?.toLowerCase().includes(texto) ||
-        p.categoria_nombre?.toLowerCase().includes(texto) ||
-        p.tipo_producto?.toLowerCase().includes(texto)
-      );
+        p.categoria_nombre?.toLowerCase().includes(texto);
+      const coincideCategoria = !categoriaFiltro || String(p.id_categoria) === String(categoriaFiltro);
+      return coincideTexto && coincideCategoria;
     });
-  }, [lista, busqueda]);
+  }, [lista, busqueda, categoriaFiltro]);
 
   const cargarProductos = async () => {
     try {
@@ -420,11 +421,21 @@ export default function GestionProductos() {
                 <span>⌕</span>
                 <input
                   type="text"
-                  placeholder="Buscar producto, categoría o tipo..."
+                  placeholder="Buscar producto..."
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                 />
               </div>
+              <select
+                className={styles["filter-select"]}
+                value={categoriaFiltro}
+                onChange={(e) => setCategoriaFiltro(e.target.value)}
+              >
+                <option value="">Todas las categorías</option>
+                {categorias.map((c) => (
+                  <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                ))}
+              </select>
             </div>
 
             <div className={styles["table-wrap"]}>
@@ -433,7 +444,6 @@ export default function GestionProductos() {
                   <tr>
                     <th>Producto</th>
                     <th>Categoría</th>
-                    <th>Tipo</th>
                     <th>Costo</th>
                     <th>Ganancia</th>
                     <th>Precio venta</th>
@@ -458,7 +468,6 @@ export default function GestionProductos() {
                         </div>
                       </td>
                       <td>{p.categoria_nombre || "Sin categoría"}</td>
-                      <td>{p.tipo_producto || "Comprado"}</td>
                       <td>{formatoMoneda(p.costo_total)}</td>
                       <td>
                         <span className={styles["pill-green"]}>{Number(p.margen_porcentaje || 0).toFixed(1)}%</span>
@@ -483,10 +492,10 @@ export default function GestionProductos() {
                     </tr>
                   ))}
                   {!cargando && productosFiltrados.length === 0 && (
-                    <tr><td colSpan="8" className={styles["empty"]}>No hay productos registrados.</td></tr>
+                    <tr><td colSpan="7" className={styles["empty"]}>No hay productos registrados.</td></tr>
                   )}
                   {cargando && (
-                    <tr><td colSpan="8" className={styles["empty"]}>Cargando productos...</td></tr>
+                    <tr><td colSpan="7" className={styles["empty"]}>Cargando productos...</td></tr>
                   )}
                 </tbody>
               </table>

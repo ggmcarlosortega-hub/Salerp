@@ -26,6 +26,8 @@
 .search-box input { width: 100%; border: none; outline: none; background: transparent; color: #111827; font-size: .92rem; }
 .search-box input::placeholder { color: #94a3b8; }
 
+.filter-select { padding: .7rem .9rem; border: 1px solid #dbe3ec; border-radius: .9rem; background: #f8fafc; color: #111827; font-size: .92rem; cursor: pointer; min-width: 15rem; }
+
 .table-wrap { width: 100%; overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; }
 .table thead { background: #f8fafc; }
@@ -112,7 +114,9 @@
 .form-grid input:focus,.form-grid textarea:focus,.form-grid select:focus,.cost-form input:focus,.cost-form select:focus { border-color: #2b547e; box-shadow: 0 0 0 4px rgba(43,84,126,.13); }
 .form-grid input:disabled,.form-grid textarea:disabled,.form-grid select:disabled { background: #f8fafc; color: #475569; border-color: #e5e7eb; cursor: not-allowed; }
 .form-actions { display: flex; justify-content: flex-end; gap: .75rem; padding: 1.2rem 1.5rem 1.35rem; }
-.category-select-row { display: grid; grid-template-columns: minmax(0,1fr) 2.9rem; gap: .5rem; }
+.category-field { display: flex; flex-direction: column; }
+.category-select-row { display: flex; gap: .5rem; }
+.category-select-row select { flex: 1; }
 .btn-category-add { border: none; border-radius: .85rem; background: #2b547e; color: #fff; font-size: 1.25rem; font-weight: 900; cursor: pointer; transition: .18s ease; }
 .btn-category-add:hover { background: #17324d; transform: translateY(-1px); }
 .toggle-line { display: flex !important; align-items: center; gap: .6rem; padding: .85rem; border: 1px solid #e5e7eb; border-radius: .85rem; background: #f8fafc; color: #0f172a !important; }

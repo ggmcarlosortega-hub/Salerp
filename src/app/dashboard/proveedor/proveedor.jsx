@@ -961,6 +961,7 @@ export default function GestionProveedores() {
               </table>
             </div>
           </section>
+
         </>
       )}
 

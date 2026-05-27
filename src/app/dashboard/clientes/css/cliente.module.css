@@ -244,6 +244,7 @@
   align-items: center;
   gap: 0.85rem;
   min-width: 16rem;
+  cursor: pointer;
 }
 
 .client-icon,
@@ -683,6 +684,7 @@
   font-size: 0.76rem !important;
   font-weight: 900;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .pill-success {

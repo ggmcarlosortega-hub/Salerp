@@ -24,6 +24,7 @@ const MaquinariaIcon = () => <Image width={32} height={32} src="/excavador.png" 
 const ProductosIcon = () => <Image width={32} height={32} src="/agregar-producto.png" alt="productos" />;
 const GastoIcon = () => <Image width={32} height={32} src="/gastos.png" alt="gastos" />;
 const ProveedorIcon = () => <Image width={32} height={32} src="/proveedor.png" alt='proveedor' />;
+const InsumoIcon = () => <Image width={32} height={32} src="/insumo.png" alt='insumos' />;
 
 export default function DashboardLayout({ children }) {
   const appBlue = 'bg-[#2B547E]';
