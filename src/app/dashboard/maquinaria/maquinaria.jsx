@@ -14,6 +14,8 @@ export default function GestionMaquinaria() {
   const [lista, setLista] = useState([]);
   const [esEdicion, setEsEdicion] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const maquinariaFiltrada = useMemo(() => {
     const texto = busqueda.toLowerCase();
@@ -63,6 +65,7 @@ export default function GestionMaquinaria() {
   // Manejador de cambios en los inputs
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setError('');
     setMaquinaria({ ...maquinaria, [name]: value });
   };
 
@@ -71,7 +74,7 @@ export default function GestionMaquinaria() {
     e.preventDefault();
 
     if (!maquinaria.nombre) {
-      alert('El nombre de la maquinaria es obligatorio');
+      setError('El nombre de la maquinaria es obligatorio');
       return;
     }
     try{
@@ -91,8 +94,10 @@ export default function GestionMaquinaria() {
     }
     cargarMaquinaria();
     Cancelar();
+    setSuccess('Maquinaria guardada correctamente');
   }catch(error){
     console.error("Error al cargar la maquinaria: ", error);
+    setError('Error al guardar la maquinaria');
   }
   };
 
@@ -120,11 +125,27 @@ export default function GestionMaquinaria() {
   const Cancelar = () => {
     setMaquinaria({ id_maquinaria: '', nombre: '', descripcion: '', observacion: '' });
     setEsEdicion(false);
+    setError('');
+    setSuccess('');
   };
 
   return (
     <div className="w-full mt-4 animate-in fade-in duration-500">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Gestión de Maquinaria</h2>
+
+      {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
+      {success && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{success}</div>}
+
+      {/* Buscador */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Buscar maquinaria..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E] w-full md:w-80"
+        />
+      </div>
 
       {/* Formulario */}
       <form onSubmit={Guardar} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
@@ -194,7 +215,7 @@ export default function GestionMaquinaria() {
             </tr>
           </thead>
           <tbody>
-            {lista.map((m) => (
+            {maquinariaFiltrada.map((m) => (
               <tr key={m.id_maquinaria} className="border-b border-gray-100 hover:bg-gray-50 transition">
                 <td className="p-4 text-gray-800 font-medium">{m.nombre}</td>
                 <td className="p-4 text-gray-600">{m.descripcion}</td>
@@ -209,7 +230,7 @@ export default function GestionMaquinaria() {
                 </td>
               </tr>
             ))}
-            {lista.length === 0 && (
+            {maquinariaFiltrada.length === 0 && (
               <tr>
                 <td colSpan="4" className="p-8 text-center text-gray-400">
                   No hay maquinaria registrada aún.

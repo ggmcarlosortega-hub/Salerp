@@ -73,6 +73,14 @@ export default function GestionProductos() {
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (imagenPreview && imagenPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagenPreview);
+      }
+    };
+  }, [imagenPreview]);
+
+  useEffect(() => {
     const pending = localStorage.getItem('pendingAction');
     if (pending) {
       try {

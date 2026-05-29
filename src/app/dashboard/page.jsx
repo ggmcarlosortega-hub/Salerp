@@ -27,33 +27,52 @@ export default function DashboardHome() {
   const [productosData, setProductosData] = useState(null);
   const [cotizacionesData, setCotizacionesData] = useState(null);
   const [contratosData, setContratosData] = useState(null);
+  const [errorDashboard, setErrorDashboard] = useState(null);
+  const [errorCotizaciones, setErrorCotizaciones] = useState(null);
+  const [errorContratos, setErrorContratos] = useState(null);
+  const [loadingCotizaciones, setLoadingCotizaciones] = useState(false);
+  const [loadingContratos, setLoadingContratos] = useState(false);
 
   useEffect(() => {
     const cargarDatos = async () => {
       try {
+        setErrorDashboard(null);
         const response = await fetch('http://localhost:3001/api/dashboard');
-        if (response.ok) {
-          const resultado = await response.json();
-          setData(resultado);
-        }
+        if (!response.ok) throw new Error('Error cargando dashboard');
+        const resultado = await response.json();
+        setData(resultado);
       } catch (error) {
         console.error("Error conectando al servidor:", error);
+        setErrorDashboard(error.message);
       }
     };
     cargarDatos();
   }, []);
 
-  useEffect(() => {
+useEffect(() => {
     const cargarCotizaciones = async () => {
       try {
-        const [productosRes, detalleRes] = await Promise.all([
-          fetch(`http://localhost:3001/api/dashboard/cotizaciones/productos?mes=${String(selectedMes).padStart(2, '0')}&year=${selectedYear}`).then(r => r.json()),
-          fetch(`http://localhost:3001/api/dashboard/cotizaciones/detalle?mes=${String(selectedMes).padStart(2, '0')}&year=${selectedYear}`).then(r => r.json())
-        ]);
-        setProductosData(productosRes);
-        setCotizacionesData(detalleRes);
+        setErrorCotizaciones(null);
+        setLoadingCotizaciones(true);
+        const productosRes = await fetch(`http://localhost:3001/api/dashboard/cotizaciones/productos?mes=${String(selectedMes).padStart(2, '0')}&year=${selectedYear}`);
+        const detalleRes = await fetch(`http://localhost:3001/api/dashboard/cotizaciones/detalle?mes=${String(selectedMes).padStart(2, '0')}&year=${selectedYear}`);
+        if (!productosRes.ok) {
+          const text = await productosRes.text();
+          throw new Error(`Error productos: ${productosRes.status} - ${text}`);
+        }
+        if (!detalleRes.ok) {
+          const text = await detalleRes.text();
+          throw new Error(`Error detalle: ${detalleRes.status} - ${text}`);
+        }
+        const productosData = await productosRes.json();
+        const detalleData = await detalleRes.json();
+        setProductosData(productosData);
+        setCotizacionesData(detalleData);
       } catch (error) {
         console.error("Error:", error);
+        setErrorCotizaciones(error.message);
+      } finally {
+        setLoadingCotizaciones(false);
       }
     };
     cargarCotizaciones();
@@ -62,15 +81,32 @@ export default function DashboardHome() {
   useEffect(() => {
     const cargarContratos = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/dashboard/contratos?mes=${selectedMes}&year=${selectedYear}`).then(r => r.json());
-        setContratosData(res);
+        setErrorContratos(null);
+        setLoadingContratos(true);
+        const res = await fetch(`http://localhost:3001/api/dashboard/contratos?mes=${selectedMes}&year=${selectedYear}`);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Error contratos: ${res.status} - ${text}`);
+        }
+        const data = await res.json();
+        setContratosData(data);
       } catch (error) {
         console.error("Error:", error);
+        setErrorContratos(error.message);
+      } finally {
+        setLoadingContratos(false);
       }
     };
     cargarContratos();
   }, [selectedMes, selectedYear]);
 
+  if (errorDashboard) return (
+    <div className="p-10 text-center text-red-500 font-bold">
+      <p className="text-xl mb-2">Error cargando dashboard</p>
+      <p className="text-sm text-red-400">{errorDashboard}</p>
+      <p className="text-sm mt-4">Verifica que el backend esté corriendo en puerto 3001</p>
+    </div>
+  );
   if (!data) return <div className="p-10 text-center text-gray-500 font-bold">Cargando estadísticas de SalERP...</div>;
 
   return (
@@ -125,7 +161,12 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {!productosData ? (
+        {errorCotizaciones ? (
+          <div className="text-center py-10 text-red-500">
+            <p className="font-bold">Error cargando cotizaciones</p>
+            <p className="text-sm">{errorCotizaciones}</p>
+          </div>
+        ) : loadingCotizaciones || !productosData ? (
           <div className="text-center py-10 text-gray-500">Cargando...</div>
         ) : (
           <>
@@ -199,7 +240,12 @@ export default function DashboardHome() {
             <h3 className="text-lg font-bold text-gray-800">Contratos Vigentes</h3>
           </div>
         </div>
-        {!contratosData ? (
+        {errorContratos ? (
+          <div className="text-center py-6 text-red-500">
+            <p className="font-bold">Error cargando contratos</p>
+            <p className="text-sm">{errorContratos}</p>
+          </div>
+        ) : loadingContratos || !contratosData ? (
           <div className="text-center py-6 text-gray-500">Cargando...</div>
         ) : (
           <>
@@ -328,10 +374,9 @@ function MonthDetailModal({ mesIndex, mesName, onClose }) {
     const fetchDetail = async () => {
       try {
         const response = await fetch(`http://localhost:3001/api/dashboard/detalle?mes=${mesIndex}&year=${year}`);
-        if (response.ok) {
-          const data = await response.json();
-          setInfo(data);
-        }
+        if (!response.ok) throw new Error('Error cargando detalle');
+        const data = await response.json();
+        setInfo(data);
       } catch (error) {
         console.error("Error:", error);
       }

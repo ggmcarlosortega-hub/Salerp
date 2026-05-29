@@ -93,6 +93,15 @@ export default function GestionClientes() {
   const [clienteDirty, setClienteDirty] = useState(false);
   const [tipoConfirmarSalir, setTipoConfirmarSalir] = useState('documento'); // 'documento' | 'cliente'
 
+  const [mostrarModalConvertir, setMostrarModalConvertir] = useState(false);
+  const [cotizacionAConvertir, setCotizacionAConvertir] = useState(null);
+  const [datosCotizacionConvertir, setDatosCotizacionConvertir] = useState(null);
+  const [loadingConvertir, setLoadingConvertir] = useState(false);
+  const [errorConvertir, setErrorConvertir] = useState('');
+
+  const [editandoEstadoDoc, setEditandoEstadoDoc] = useState(null); // { id, tipo, estado }
+  const [guardandoEstado, setGuardandoEstado] = useState(false);
+
   const [documentoForm, setDocumentoForm] = useState(documentoInicial);
   const [contratoForm, setContratoForm] = useState(contratoInicial);
   const [abonoForm, setAbonoForm] = useState(abonoInicial);
@@ -815,6 +824,26 @@ const guardarDocumentoComercial = async () => {
       return;
     }
 
+    if (accion === "convertir") {
+      setMenuDocumentoAbierto(null);
+      setCotizacionAConvertir(doc);
+      setDatosCotizacionConvertir(null);
+      setErrorConvertir('');
+      setLoadingConvertir(true);
+      setMostrarModalConvertir(true);
+      try {
+        const res = await fetch(`${API_DOCUMENTO}/cotizacion/${doc.id_documento}`);
+        if (!res.ok) throw new Error('Error cargando cotización');
+        const data = await res.json();
+        setDatosCotizacionConvertir(data);
+      } catch (err) {
+        setErrorConvertir(err.message);
+      } finally {
+        setLoadingConvertir(false);
+      }
+      return;
+    }
+
     if (accion === "modificar") {
       try {
         setCargando(true);
@@ -861,8 +890,8 @@ const guardarDocumentoComercial = async () => {
             condiciones_pago: data.condiciones_pago || documentoInicial.condiciones_pago,
             id_producto: "",
             cantidad: 1,
-            // Si el backend no devolvió items, dejamos el arreglo vacío temporalmente
-            items: data.items || data.detalles ||[] 
+            // Solo usar items del backend si existen; si 404, mantener items actuales del formulario
+            items: data.items || data.detalles || documentoForm.items || [] 
           });
         } else if (tipoModal === "contrato") {
           setContratoForm({
@@ -898,11 +927,50 @@ const guardarDocumentoComercial = async () => {
       }
       return;
     }
+  };
 
-    if (accion === "desactivar") {
-      setMensaje(`La acción "desactivar" para ${doc.tipo_documento} #${doc.id_documento} está lista para conectarse al backend.`);
+  const guardarEstadoDocumento = async (id, tipo, nuevoEstado) => {
+    setGuardandoEstado(true);
+    try {
+      const endpoint = tipo === 'Cotización' ? 'cotizacion' : 'factura';
+      const res = await fetch(`${API_DOCUMENTO}/${endpoint}/${id}/estado`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: nuevoEstado })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Error al actualizar estado');
+      }
+      setEditandoEstadoDoc(null);
+      await cargarDetalleCliente(cliente.id_cliente);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGuardandoEstado(false);
     }
   };
+
+  const confirmarConvertirCotizacion = async () => {
+    if (!cotizacionAConvertir) return;
+    setLoadingConvertir(true);
+    setErrorConvertir('');
+    try {
+      const res = await fetch(`${API_DOCUMENTO}/cotizacion/${cotizacionAConvertir.id_documento}/factura`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al convertir cotización.');
+      setMensaje(`Factura #${data.id_factura} creada correctamente.`);
+      setMostrarModalConvertir(false);
+      setCotizacionAConvertir(null);
+      setDatosCotizacionConvertir(null);
+      await cargarDetalleCliente(cliente.id_cliente);
+    } catch (err) {
+      setErrorConvertir(err.message);
+    } finally {
+      setLoadingConvertir(false);
+    }
+  };
+
   const tituloDocumentos = {
     cotizaciones: "Cotizaciones",
     facturas: "Facturas",
@@ -1666,6 +1734,7 @@ const guardarDocumentoComercial = async () => {
                       <th>Total / Monto</th>
                       <th>Observación</th>
                       <th></th>
+                      <th></th>
                     </tr>
                   </thead>
 
@@ -1679,24 +1748,72 @@ const guardarDocumentoComercial = async () => {
 
                         <td>{formatoFecha(doc.fecha)}</td>
 
-                        <td>
-                          <span
-                            className={
-                              doc.estado === "Pagada" ||
-                              doc.estado === "Aceptada" ||
-                              doc.estado === "Activo" ||
-                              doc.estado === "Efectivo"
-                                ? styles["pill-success"]
-                                : styles["pill-blue"]
-                            }
-                          >
-                            {doc.estado || "Sin estado"}
-                          </span>
+                        <td onDoubleClick={() => {
+                          if (doc.tipo_documento === "Cotización" || doc.tipo_documento === "Factura") {
+                            setEditandoEstadoDoc({ id: doc.id_documento, tipo: doc.tipo_documento, estado: doc.estado });
+                          }
+                        }}>
+                          {editandoEstadoDoc?.id === doc.id_documento && editandoEstadoDoc?.tipo === doc.tipo_documento ? (
+                            <select
+                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              value={editandoEstadoDoc.estado}
+                              onChange={(e) => setEditandoEstadoDoc({ ...editandoEstadoDoc, estado: e.target.value })}
+                              onBlur={() => {
+                                if (editandoEstadoDoc.estado !== doc.estado) {
+                                  guardarEstadoDocumento(doc.id_documento, doc.tipo_documento, editandoEstadoDoc.estado);
+                                } else {
+                                  setEditandoEstadoDoc(null);
+                                }
+                              }}
+                              autoFocus
+                            >
+                              {doc.tipo_documento === "Cotización" && (
+                                <>
+                                  <option value="Borrador">Borrador</option>
+                                  <option value="Aceptada">Aceptada</option>
+                                  <option value="Rechazada">Rechazada</option>
+                                  <option value="Convertida">Convertida</option>
+                                </>
+                              )}
+                              {doc.tipo_documento === "Factura" && (
+                                <>
+                                  <option value="Pendiente">Pendiente</option>
+                                  <option value="Pagada">Pagada</option>
+                                  <option value="Anulada">Anulada</option>
+                                </>
+                              )}
+                            </select>
+                          ) : (
+                            <span
+                              className={`inline-block px-2 py-1 rounded text-xs font-medium cursor-pointer ${
+                                doc.estado === "Pagada" || doc.estado === "Aceptada" || doc.estado === "Activo"
+                                  ? "bg-green-100 text-green-700"
+                                  : doc.estado === "Anulada" || doc.estado === "Rechazada"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-blue-100 text-blue-700"
+                              }`}
+                              title="Doble clic para editar"
+                            >
+                              {doc.tipo_documento === "Abono" ? (doc.metodo_pago || "Sin método") : (doc.estado || "Sin estado")}
+                            </span>
+                          )}
                         </td>
 
                         <td><strong>{formatoMoneda(doc.total)}</strong></td>
 
                         <td>{doc.observacion || "Sin observación"}</td>
+
+                        <td>
+                          {doc.tipo_documento === "Cotización" && doc.estado !== "Convertida" && (
+                            <button
+                              type="button"
+                              onClick={() => accionDocumento("convertir", doc)}
+                              className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 transition"
+                            >
+                              Convertir
+                            </button>
+                          )}
+                        </td>
 
                         <td className={styles["actions-cell"]}>
                           <button
@@ -1710,7 +1827,6 @@ const guardarDocumentoComercial = async () => {
                           {menuDocumentoAbierto === `${tipoDocumentos}-${doc.id_documento}` && (
                             <div className={styles["doc-menu"]}>
                               <button type="button" onClick={() => accionDocumento("modificar", doc)}>Modificar</button>
-                              <button type="button" onClick={() => accionDocumento("desactivar", doc)}>Desactivar</button>
                               <button type="button" onClick={() => accionDocumento("pdf", doc)}>
                                 {doc.tipo_documento === "Abono" ? "Ver comprobante" : "Ver PDF"}
                               </button>
@@ -1722,7 +1838,7 @@ const guardarDocumentoComercial = async () => {
 
                     {documentosFiltrados.length === 0 && (
                       <tr>
-                        <td colSpan="6" className={styles["empty"]}>
+                        <td colSpan="7" className={styles["empty"]}>
                           No hay {tituloDocumentos[tipoDocumentos].toLowerCase()} registrados para este cliente.
                         </td>
                       </tr>
@@ -1745,6 +1861,67 @@ const guardarDocumentoComercial = async () => {
               <button onClick={() => setMostrarModalConfirmacion(false)} className={styles["btn-light"]}>Cancelar</button>
               <button onClick={confirmarDesactivacion} className={styles["btn-danger"]}>Sí, desactivar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarModalConvertir && (
+        <div className={styles["modal-overlay"]}>
+          <div className={styles["modal"]} style={{ maxWidth: 600 }}>
+            <h3>Convertir Cotización a Factura</h3>
+
+            {loadingConvertir ? (
+              <div className="text-center py-8 text-gray-500">Cargando datos...</div>
+            ) : errorConvertir ? (
+              <div className="py-4 text-red-500">
+                <p className="font-bold">Error</p>
+                <p className="text-sm">{errorConvertir}</p>
+              </div>
+            ) : datosCotizacionConvertir ? (
+              <>
+                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                  <p><strong>Cliente:</strong> {datosCotizacionConvertir.nombre} {datosCotizacionConvertir.apellido}</p>
+                  <p><strong>Asunto:</strong> {datosCotizacionConvertir.asunto}</p>
+                  <p><strong>Fecha:</strong> {new Date(datosCotizacionConvertir.fecha).toLocaleDateString('es-CO')}</p>
+                  <p><strong>IVA:</strong> {datosCotizacionConvertir.iva}% | <strong>Descuento:</strong> {formatoMoneda(datosCotizacionConvertir.descuento)}</p>
+                  <p className="text-lg font-bold mt-2">Total: {formatoMoneda(datosCotizacionConvertir.total)}</p>
+                </div>
+
+                {datosCotizacionConvertir.detalles && datosCotizacionConvertir.detalles.length > 0 ? (
+                  <table className="w-full text-sm mb-4">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2">Producto</th>
+                        <th className="text-right py-2">Cantidad</th>
+                        <th className="text-right py-2">Precio Unit.</th>
+                        <th className="text-right py-2">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datosCotizacionConvertir.detalles.map((item, i) => (
+                        <tr key={i} className="border-b border-gray-100">
+                          <td className="py-2">{item.producto}</td>
+                          <td className="text-right py-2">{item.cantidad}</td>
+                          <td className="text-right py-2">{formatoMoneda(item.precio_unitario)}</td>
+                          <td className="text-right py-2 font-medium">{formatoMoneda(item.subtotal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-gray-500 text-sm mb-4">La cotización no tiene productos.</p>
+                )}
+
+                <p className="text-sm text-gray-600 mb-4">
+                  Al convertir, se creará una factura con estos datos y la cotización pasará a estado <strong>"Convertida"</strong>.
+                </p>
+
+                <div className={styles["modal-actions"]}>
+                  <button onClick={() => { setMostrarModalConvertir(false); setCotizacionAConvertir(null); setDatosCotizacionConvertir(null); }} className={styles["btn-light"]}>Cancelar</button>
+                  <button onClick={confirmarConvertirCotizacion} className="px-6 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition">Convertir a Factura</button>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       )}

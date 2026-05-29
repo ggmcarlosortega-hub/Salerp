@@ -11,6 +11,7 @@ export default function Login() {
   const [correo, setCorreo] = useState("");
   const [password, setpassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const verificarLogin = async (e) => {
     e.preventDefault(); // Evita que la página se recargue
@@ -22,6 +23,9 @@ export default function Login() {
     }
 
     try {
+      setLoading(true);
+      setErrorMsg("");
+
       const response = await fetch("http://localhost:3001/api/login/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -31,20 +35,16 @@ export default function Login() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        if (response.ok && data.success) {
-          // 1. GUARDAR LOS DATOS EN EL NAVEGADOR (Se convierten a texto con JSON.stringify)
-          localStorage.setItem("user_salerp", JSON.stringify(data.usuario));
-
-          // Redirigimos al usuario directamente al dashboard
-          router.push("/dashboard");
-        }
+        localStorage.setItem("user_salerp", JSON.stringify(data.usuario));
+        router.push("/dashboard");
       } else {
-        // Mostramos el error si las credenciales fallan
         setErrorMsg(data.message || "Credenciales inválidas.");
       }
     } catch (error) {
       console.error("Error en el inicio de sesión:", error);
       setErrorMsg("No se pudo conectar con el servidor.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,10 +99,11 @@ export default function Login() {
 
           <div className="w-full max-w-sm flex flex-col items-center gap-5 mt-2">
             <button
-              className="w-full h-11 flex justify-center items-center rounded-md text-white bg-blue-500 hover:bg-blue-700 transition-colors font-medium shadow-md hover:shadow-lg"
+              className="w-full h-11 flex justify-center items-center rounded-md text-white bg-blue-500 hover:bg-blue-700 transition-colors font-medium shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
               type="submit"
+              disabled={loading}
             >
-              Continue
+              {loading ? "Ingresando..." : "Continue"}
             </button>
           </div>
 

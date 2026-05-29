@@ -106,7 +106,7 @@ export default function DashboardLayout({ children }) {
       fetch(`http://localhost:3001/api/actividad/mas-usado/${usuarioId}`)
         .then(res => res.json())
         .then(data => {
-          if (data.moduloMasOsado) {
+          if (data.moduloMasUsado) {
             setModuloMasUsado(data.moduloMasUsado);
           }
         })

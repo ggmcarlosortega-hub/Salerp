@@ -42,6 +42,7 @@ export default function GestionProveedores() {
 
   const [insumoForm, setInsumoForm] = useState(insumoInicial);
   const [entradaForm, setEntradaForm] = useState(entradaInicial);
+  const [insumoEditando, setInsumoEditando] = useState(null);
 
   const [modoEdicion, setModoEdicion] = useState(false);
   const [busqueda, setBusqueda] = useState("");
@@ -282,8 +283,13 @@ export default function GestionProveedores() {
     }
 
     try {
-      const response = await fetch(`${API_PROVEEDOR}/${proveedor.id_proveedor}/insumos`, {
-        method: "POST",
+      const esEdicion = Boolean(insumoEditando);
+      const url = esEdicion
+        ? `${API_PROVEEDOR}/insumos/${insumoEditando}`
+        : `${API_PROVEEDOR}/${proveedor.id_proveedor}/insumos`;
+
+      const response = await fetch(url, {
+        method: esEdicion ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(insumoForm),
       });
@@ -291,17 +297,37 @@ export default function GestionProveedores() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Error al registrar insumo.");
+        throw new Error(data.error || (esEdicion ? "Error al actualizar insumo." : "Error al registrar insumo."));
       }
 
-      setMensaje("Insumo registrado correctamente.");
+      setMensaje(esEdicion ? "Insumo actualizado correctamente." : "Insumo registrado correctamente.");
       setInsumoForm(insumoInicial);
+      setInsumoEditando(null);
 
       await cargarDetalleProveedor(proveedor.id_proveedor);
       cargarProveedores();
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const iniciarEdicionInsumo = (item) => {
+    setInsumoEditando(item.id_insumo);
+    setError('');
+    setMensaje('');
+    setInsumoForm({
+      nombre: item.nombre,
+      descripcion: item.descripcion || '',
+      unidad_medida: item.unidad_medida,
+      costo_unitario: item.costo_unitario,
+      stock_actual: item.stock_actual,
+      stock_minimo: item.stock_minimo,
+    });
+  };
+
+  const cancelarEdicionInsumo = () => {
+    setInsumoEditando(null);
+    setInsumoForm(insumoInicial);
   };
 
   const registrarEntrada = async (e) => {
@@ -779,8 +805,13 @@ export default function GestionProveedores() {
                 </div>
 
                 <button type="submit" className={styles["btn-primary"]}>
-                  + Agregar insumo
+                  {insumoEditando ? "Actualizar insumo" : "+ Agregar insumo"}
                 </button>
+                {insumoEditando && (
+                  <button type="button" onClick={cancelarEdicionInsumo} className={styles["btn-light"]}>
+                    Cancelar
+                  </button>
+                )}
               </form>
             </section>
           </section>
@@ -838,6 +869,14 @@ export default function GestionProveedores() {
                             </span>
                           </td>
                           <td>
+                            <button
+                              type="button"
+                              onClick={() => iniciarEdicionInsumo(item)}
+                              className={styles["btn-edit-small"]}
+                              style={{ marginRight: '4px' }}
+                            >
+                              Editar
+                            </button>
                             <button
                               type="button"
                               onClick={() => eliminarInsumo(item.id_insumo)}
