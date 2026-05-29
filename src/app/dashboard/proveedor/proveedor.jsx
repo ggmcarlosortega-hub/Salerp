@@ -49,9 +49,24 @@ export default function GestionProveedores() {
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
   const [mostrarModalConfirmacion, setMostrarModalConfirmacion] = useState(false);
+  const [proveedorDirty, setProveedorDirty] = useState(false);
+  const [mostrarConfirmarSalir, setMostrarConfirmarSalir] = useState(false);
 
   useEffect(() => {
     cargarProveedores();
+  }, []);
+
+  useEffect(() => {
+    const pending = localStorage.getItem('pendingAction');
+    if (pending) {
+      try {
+        const { action } = JSON.parse(pending);
+        localStorage.removeItem('pendingAction');
+        if (action === 'nuevoProveedor') nuevoProveedor();
+      } catch (e) {
+        console.error('Error parsing pending action:', e);
+      }
+    }
   }, []);
 
   const formatoMoneda = (valor) => {
@@ -144,6 +159,7 @@ export default function GestionProveedores() {
     setModoEdicion(true);
     setMensaje("");
     setError("");
+    setProveedorDirty(true);
     setVistaActual("detalle");
   };
 
@@ -154,13 +170,22 @@ export default function GestionProveedores() {
     setInsumoForm(insumoInicial);
     setEntradaForm(entradaInicial);
     setModoEdicion(false);
+    setProveedorDirty(false);
     setVistaActual("lista");
     cargarProveedores();
   };
 
+  const manejarSalirProveedor = (force = false) => {
+    if (proveedorDirty && !force) {
+      setMostrarConfirmarSalir(true);
+      return;
+    }
+    volverLista();
+  };
+
   const handleProveedorChange = (e) => {
     const { name, value } = e.target;
-
+    setProveedorDirty(true);
     setProveedor((prev) => ({
       ...prev,
       [name]: value,
@@ -221,6 +246,7 @@ export default function GestionProveedores() {
       );
 
       setModoEdicion(false);
+      setProveedorDirty(false);
 
       if (esEdicion) {
         await cargarDetalleProveedor(proveedor.id_proveedor);
@@ -488,7 +514,7 @@ export default function GestionProveedores() {
 
       {vistaActual === "detalle" && (
         <>
-          <button onClick={volverLista} className={styles["back-btn"]}>
+          <button onClick={manejarSalirProveedor} className={styles["back-btn"]}>
             ← Volver a proveedores
           </button>
 
@@ -985,6 +1011,23 @@ export default function GestionProveedores() {
               <button onClick={confirmarDesactivacion} className={styles["btn-danger"]}>
                 Sí, desactivar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarConfirmarSalir && (
+        <div className={styles["modal-overlay"]}>
+          <div className={`${styles["modal"]} ${styles["modal-sm"]}`}>
+            <div className={styles["modal-header"]}>
+              <h3>¿Salir sin guardar?</h3>
+            </div>
+            <div className={styles["modal-body"]}>
+              <p>Tenés cambios sin guardar. Si salís ahora, se perderán.</p>
+            </div>
+            <div className={styles["modal-actions"]}>
+              <button type="button" onClick={() => setMostrarConfirmarSalir(false)} className={styles["btn-light"]}>Quedarme</button>
+              <button type="button" onClick={() => { setMostrarConfirmarSalir(false); volverLista(); }} className={styles["btn-primary"]}>Salir sin guardar</button>
             </div>
           </div>
         </div>

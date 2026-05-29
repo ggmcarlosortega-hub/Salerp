@@ -72,6 +72,22 @@ export default function GestionProductos() {
     cargarInsumosSistema();
   }, []);
 
+  useEffect(() => {
+    const pending = localStorage.getItem('pendingAction');
+    if (pending) {
+      try {
+        const { action } = JSON.parse(pending);
+        localStorage.removeItem('pendingAction');
+        if (action === 'nuevoProducto') nuevoProducto();
+        else if (action === 'nuevaCategoria') {
+          setMostrarModalCategoria(true);
+        }
+      } catch (e) {
+        console.error('Error parsing pending action:', e);
+      }
+    }
+  }, []);
+
   const formatoMoneda = (valor) =>
     new Intl.NumberFormat("es-CO", {
       style: "currency",

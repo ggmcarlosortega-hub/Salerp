@@ -139,6 +139,11 @@
 .modal h3 { margin: 0; color: #111827; font-size: 1.2rem; font-weight: 950; }
 .modal p { margin: .75rem 0 0; color: #475569; font-size: .92rem; line-height: 1.5; }
 .modal-actions { display: flex; justify-content: flex-end; gap: .7rem; margin-top: 1.5rem; }
+.modal-sm { max-width: 22rem; }
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+.modal-header h3 { margin: 0; color: #111827; font-size: 1.1rem; font-weight: 950; }
+.modal-body { margin: .75rem 0; }
+.modal-body p { margin: 0; color: #475569; font-size: .92rem; line-height: 1.5; }
 .modal-category { max-width: 34rem; padding: 0; overflow: hidden; }
 .category-modal-head { display: grid; grid-template-columns: auto 1fr; gap: 1rem; padding: 1.4rem; background: radial-gradient(circle at top right,rgba(219,234,254,.9),transparent 38%), linear-gradient(135deg,#f8fafc,#ffffff); border-bottom: 1px solid #eef2f7; }
 .category-modal-icon { width: 3.1rem; height: 3.1rem; display: grid; place-items: center; border-radius: 1rem; background: #2b547e; color: #fff; font-size: 1.4rem; font-weight: 900; box-shadow: 0 12px 25px rgba(43,84,126,.22); }

@@ -1,6 +1,6 @@
 "use client";
 import { ApiError } from 'next/dist/server/api-utils';
-import React, { useState , useEffect} from 'react';
+import React, { useState , useEffect, useMemo} from 'react';
 
 export default function GestionMaquinaria() {
   // Estado para el formulario (basado en tu modelo de Blazor)
@@ -13,11 +13,39 @@ export default function GestionMaquinaria() {
 
   const [lista, setLista] = useState([]);
   const [esEdicion, setEsEdicion] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+
+  const maquinariaFiltrada = useMemo(() => {
+    const texto = busqueda.toLowerCase();
+    return lista.filter((m) => {
+      return (
+        m.nombre?.toLowerCase().includes(texto) ||
+        m.descripcion?.toLowerCase().includes(texto) ||
+        m.observacion?.toLowerCase().includes(texto)
+      );
+    });
+  }, [lista, busqueda]);
 
   const API_URL = 'http://localhost:3001/api/maquinaria';
 
   useEffect(() => {
     cargarMaquinaria();
+  }, []);
+
+  useEffect(() => {
+    const pending = localStorage.getItem('pendingAction');
+    if (pending) {
+      try {
+        const { action } = JSON.parse(pending);
+        localStorage.removeItem('pendingAction');
+        if (action === 'nuevo') {
+          Cancelar();
+          setEsEdicion(true);
+        }
+      } catch (e) {
+        console.error('Error parsing pending action:', e);
+      }
+    }
   }, []);
 
   const cargarMaquinaria = async () => {

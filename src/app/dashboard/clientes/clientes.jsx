@@ -106,6 +106,19 @@ export default function GestionClientes() {
     cargarDatosDocumento();
   }, []);
 
+  useEffect(() => {
+    const pending = localStorage.getItem('pendingAction');
+    if (pending) {
+      try {
+        const { action } = JSON.parse(pending);
+        localStorage.removeItem('pendingAction');
+        if (action === 'nuevoCliente') nuevoCliente();
+      } catch (e) {
+        console.error('Error parsing pending action:', e);
+      }
+    }
+  }, []);
+
   const formatoMoneda = (valor) => {
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
