@@ -1,0 +1,124 @@
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wrap {
+  position: relative;
+}
+
+.trigger {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.trigger:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 340px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+  overflow: hidden;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+}
+
+.inputWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.inputWrap input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 0.85rem;
+  color: #1f2937;
+  background: transparent;
+}
+
+.inputWrap input::placeholder {
+  color: #9ca3af;
+}
+
+.inputWrap kbd {
+  font-size: 0.65rem;
+  color: #9ca3af;
+  background: #f1f5f9;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.lista {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.82rem;
+}
+
+.sugerencias {
+  padding: 0.35rem 0;
+}
+
+.sugHeader {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.9rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+  font-size: 0.82rem;
+}
+
+.item:hover {
+  background: #f3f4f6;
+}
+
+.itemLabel {
+  font-weight: 600;
+  color: #1f2937;
+  flex: 1;
+}
+
+.itemPath {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  font-weight: 500;
+}

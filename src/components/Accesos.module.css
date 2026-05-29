@@ -1,0 +1,120 @@
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.accesosBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.accesosBtn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.shortcut {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.shortcut:hover {
+  background: rgba(255,255,255,0.2);
+  transform: scale(1.08);
+}
+
+.shortcut.active {
+  background: rgba(255,255,255,0.2);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.4);
+}
+
+.dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  width: 260px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+  overflow: hidden;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+}
+
+.header {
+  padding: 0.7rem 0.9rem;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: #1f2937;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: center;
+}
+
+.body {
+  padding: 0.3rem 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: #374151;
+  transition: background 0.12s;
+}
+
+.item:hover {
+  background: #f3f4f6;
+}
+
+.item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #2B547E;
+  cursor: pointer;
+}
+
+.itemLabel {
+  font-weight: 500;
+}
+
+.footer {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.68rem;
+  color: #9ca3af;
+  text-align: center;
+  border-top: 1px solid #f1f5f9;
+}
