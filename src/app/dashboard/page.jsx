@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { DollarSign, ArrowDownCircle, Package, TrendingUp, X, FileText, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { apiFetch } from '@/services/api';
 
 const MESES_INDEX = { 'Ene': 1, 'Feb': 2, 'Mar': 3, 'Abr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Ago': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dic': 12 };
 const MESES_NOMBRE = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -31,11 +32,8 @@ export default function DashboardHome() {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/dashboard');
-        if (response.ok) {
-          const resultado = await response.json();
-          setData(resultado);
-        }
+        const resultado = await apiFetch('http://localhost:3001/api/dashboard');
+        setData(resultado);
       } catch (error) {
         console.error("Error conectando al servidor:", error);
       }
@@ -47,8 +45,8 @@ export default function DashboardHome() {
     const cargarCotizaciones = async () => {
       try {
         const [productosRes, detalleRes] = await Promise.all([
-          fetch(`http://localhost:3001/api/dashboard/cotizaciones/productos?mes=${String(selectedMes).padStart(2, '0')}&year=${selectedYear}`).then(r => r.json()),
-          fetch(`http://localhost:3001/api/dashboard/cotizaciones/detalle?mes=${String(selectedMes).padStart(2, '0')}&year=${selectedYear}`).then(r => r.json())
+          apiFetch(`http://localhost:3001/api/dashboard/cotizaciones/productos?mes=${String(selectedMes).padStart(2, '0')}&year=${selectedYear}`),
+          apiFetch(`http://localhost:3001/api/dashboard/cotizaciones/detalle?mes=${String(selectedMes).padStart(2, '0')}&year=${selectedYear}`)
         ]);
         setProductosData(productosRes);
         setCotizacionesData(detalleRes);
@@ -62,7 +60,7 @@ export default function DashboardHome() {
   useEffect(() => {
     const cargarContratos = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/dashboard/contratos?mes=${selectedMes}&year=${selectedYear}`).then(r => r.json());
+        const res = await apiFetch(`http://localhost:3001/api/dashboard/contratos?mes=${selectedMes}&year=${selectedYear}`);
         setContratosData(res);
       } catch (error) {
         console.error("Error:", error);
@@ -175,7 +173,7 @@ export default function DashboardHome() {
               ) : cotizacionesData.map((cot) => (
                 <div key={cot.id_cotizacion} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cot.estado === 'Aceptada' ? 'bg-green-500' : cot.estado === 'Rechazada' ? 'bg-red-500' : cot.estado === 'Convertida' ? 'bg-blue-500' : 'bg-yellow-500'}`} />
+                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cot.estado === 'Aprobada' ? 'bg-green-500' : 'bg-yellow-500'}`} />
                     <div>
                       <p className="text-sm font-medium text-gray-800">{cot.cliente}</p>
                       <p className="text-xs text-gray-500">{cot.asunto || 'Sin asunto'} · {new Date(cot.fecha).toLocaleDateString('es-CO')}</p>
@@ -327,11 +325,8 @@ function MonthDetailModal({ mesIndex, mesName, onClose }) {
   useEffect(() => {
     const fetchDetail = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/api/dashboard/detalle?mes=${mesIndex}&year=${year}`);
-        if (response.ok) {
-          const data = await response.json();
-          setInfo(data);
-        }
+        const data = await apiFetch(`http://localhost:3001/api/dashboard/detalle?mes=${mesIndex}&year=${year}`);
+        setInfo(data);
       } catch (error) {
         console.error("Error:", error);
       }

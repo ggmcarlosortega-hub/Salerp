@@ -597,6 +597,15 @@
   color: #17324d;
 }
 
+.doc-menu button.btn-aprobar {
+  color: #059669;
+}
+
+.doc-menu button.btn-aprobar:hover {
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .btn-table,
 .btn-primary,
 .btn-secondary,

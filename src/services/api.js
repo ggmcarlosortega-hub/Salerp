@@ -11,7 +11,7 @@ export const API_EMPRESA = `${API_BASE}/api/empresa`;
 export const API_AUTH = `${API_BASE}/api/auth`;
 
 export const getHeaders = (includeContentType = true) => {
-  const raw = typeof window !== 'undefined' ? localStorage.getItem('user_salerp') : null;
+  const raw = typeof window !== 'undefined' ? sessionStorage.getItem('user_salerp') : null;
   const usuario = raw ? JSON.parse(raw) : {};
   const headers = {
     'x-empresa-id': usuario.id_empresa || '',
@@ -30,7 +30,7 @@ export const getHeaders = (includeContentType = true) => {
 };
 
 export const getFileHeaders = () => {
-  const raw = typeof window !== 'undefined' ? localStorage.getItem('user_salerp') : null;
+  const raw = typeof window !== 'undefined' ? sessionStorage.getItem('user_salerp') : null;
   const usuario = raw ? JSON.parse(raw) : {};
   const headers = {
     'x-empresa-id': usuario.id_empresa || '',
@@ -84,7 +84,7 @@ export const loginUser = async (correo, password) => {
     id_acceso: data.usuario.id_acceso,
   };
 
-  localStorage.setItem('user_salerp', JSON.stringify(usuario));
+  sessionStorage.setItem('user_salerp', JSON.stringify(usuario));
 
   return usuario;
 };

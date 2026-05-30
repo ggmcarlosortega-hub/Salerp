@@ -57,7 +57,6 @@ const contratoInicial = {
 
 const abonoInicial = {
   id_factura: "",
-  id_contrato: "",
   monto: "",
   metodo_pago: "Efectivo",
   referencia: "",
@@ -202,12 +201,9 @@ export default function GestionClientes() {
   const descuentoValor = subtotalDocumento * (Number(documentoForm.descuento || 0) / 100);
   const totalDocumento = subtotalDocumento + ivaDocumento - descuentoValor;
 
-  const documentosParaAbono = useMemo(() => {
-    return {
-      facturas: facturas.filter((f) => Number(f.saldo_pendiente ?? f.total ?? 0) > 0),
-      contratos: contratos.filter((c) => Number(c.saldo_pendiente ?? c.total ?? 0) > 0),
-    };
-  }, [facturas, contratos]);
+  const facturasPendientes = useMemo(() => {
+    return facturas.filter((f) => Number(f.saldo_pendiente ?? f.total ?? 0) > 0);
+  }, [facturas]);
 
   const cargarClientes = async () => {
     try {
@@ -726,24 +722,6 @@ const guardarDocumentoComercial = async () => {
     const { name, value, files } = e.target;
     setFormDirty(true);
 
-    if (name === "id_factura") {
-      setAbonoForm((prev) => ({
-        ...prev,
-        id_factura: value,
-        id_contrato: value ? "" : prev.id_contrato,
-      }));
-      return;
-    }
-
-    if (name === "id_contrato") {
-      setAbonoForm((prev) => ({
-        ...prev,
-        id_contrato: value,
-        id_factura: value ? "" : prev.id_factura,
-      }));
-      return;
-    }
-
     if (name === "comprobante") {
       setAbonoForm((prev) => ({
         ...prev,
@@ -762,8 +740,8 @@ const guardarDocumentoComercial = async () => {
     setMensaje("");
     setError("");
 
-    if (!abonoForm.id_factura && !abonoForm.id_contrato) {
-      setError("Selecciona una factura o un contrato para aplicar el abono.");
+    if (!abonoForm.id_factura) {
+      setError("Selecciona una factura para aplicar el abono.");
       return;
     }
 
@@ -780,8 +758,7 @@ const guardarDocumentoComercial = async () => {
 
       const formData = new FormData();
       formData.append("id_cliente", cliente.id_cliente);
-      formData.append("id_factura", abonoForm.id_factura || "");
-      formData.append("id_contrato", abonoForm.id_contrato || "");
+      formData.append("id_factura", abonoForm.id_factura);
       formData.append("monto", abonoForm.monto);
       formData.append("metodo_pago", abonoForm.metodo_pago);
       formData.append("referencia", abonoForm.referencia || "");
@@ -891,7 +868,9 @@ const guardarDocumentoComercial = async () => {
           setDocumentoForm({
             asunto: data.asunto || doc.titulo || "",
             iva: data.iva || 0,
-            descuento: data.descuento || 0,
+            descuento: Number(data.descuento) > 0 && Number(data.subtotal) > 0
+              ? Number(((Number(data.descuento) / Number(data.subtotal)) * 100).toFixed(2))
+              : 0,
             observaciones: data.observaciones || doc.observacion || "",
             condiciones_pago: data.condiciones_pago || documentoInicial.condiciones_pago,
             id_producto: "",
@@ -951,6 +930,20 @@ const guardarDocumentoComercial = async () => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Error al cambiar estado del documento.");
         setMensaje(`${doc.tipo_documento} #${doc.id_documento} ${accion === "desactivar" ? "desactivado" : "activado"} correctamente.`);
+        await cargarDetalleCliente(cliente.id_cliente);
+      } catch (err) {
+        setError(err.message);
+      }
+      return;
+    }
+
+    if (accion === "aprobar") {
+      try {
+        const url = `${API_DOCUMENTO}/cotizacion/${doc.id_documento}/aprobar`;
+        const response = await fetch(url, { method: "POST", headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Error al aprobar cotización.");
+        setMensaje(`Cotización #${doc.id_documento} aprobada. Factura #${data.id_factura} creada.`);
         await cargarDetalleCliente(cliente.id_cliente);
       } catch (err) {
         setError(err.message);
@@ -1249,79 +1242,73 @@ const guardarDocumentoComercial = async () => {
           <div>
             <span className={styles["modal-badge"]}>Abono</span>
             <h3>{documentoEnEdicion ? "Modificar abono" : "Registrar abono"}</h3>
-            <p>Registra pagos parciales o totales sobre facturas o contratos del cliente.</p>
+            <p>Registra pagos parciales o totales sobre facturas del cliente.</p>
           </div>
           <button type="button" onClick={cerrarModalDocumento} className={styles["btn-close"]}>×</button>
         </div>
 
         <div className={styles["mini-grid"]}>
-          <div>
-            <label>Factura</label>
-            <select
-              name="id_factura"
-              value={abonoForm.id_factura}
-              onChange={handleAbonoChange}
-              disabled={Boolean(abonoForm.id_contrato)}
-            >
-              <option value="">Sin factura</option>
-              {documentosParaAbono.facturas.map(f => (
-                <option key={f.id_documento} value={f.id_documento}>Factura #{f.id_documento} - Saldo {formatoMoneda(f.saldo_pendiente ?? f.total)}</option>
-              ))}
-            </select>
-          </div>
+          {facturasPendientes.length === 0 ? (
+            <div className={styles["field-full"]}>
+              <p className="text-sm text-gray-500 text-center py-4">No hay facturas pendientes para este cliente.</p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label>Factura</label>
+                <select
+                  name="id_factura"
+                  value={abonoForm.id_factura}
+                  onChange={handleAbonoChange}
+                >
+                  <option value="">Seleccionar factura</option>
+                  {facturasPendientes.map(f => (
+                    <option key={f.id_documento} value={f.id_documento}>Factura #{f.id_documento} - Saldo {formatoMoneda(f.saldo_pendiente ?? f.total)}</option>
+                  ))}
+                </select>
+              </div>
 
-          <div>
-            <label>Contrato</label>
-            <select
-              name="id_contrato"
-              value={abonoForm.id_contrato}
-              onChange={handleAbonoChange}
-              disabled={Boolean(abonoForm.id_factura)}
-            >
-              <option value="">Sin contrato</option>
-              {documentosParaAbono.contratos.map(c => (
-                <option key={c.id_documento} value={c.id_documento}>Contrato #{c.id_documento} - Saldo {formatoMoneda(c.saldo_pendiente ?? c.total)}</option>
-              ))}
-            </select>
-          </div>
+              <div>
+                <label>Monto</label>
+                <input type="number" name="monto" min="0" step="0.01" value={abonoForm.monto} onChange={handleAbonoChange} placeholder="0" />
+              </div>
 
-          <div>
-            <label>Monto</label>
-            <input type="number" name="monto" min="0" step="0.01" value={abonoForm.monto} onChange={handleAbonoChange} placeholder="0" />
-          </div>
+              <div>
+                <label>Método de pago</label>
+                <select name="metodo_pago" value={abonoForm.metodo_pago} onChange={handleAbonoChange}>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Tarjeta">Tarjeta</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
 
-          <div>
-            <label>Método de pago</label>
-            <select name="metodo_pago" value={abonoForm.metodo_pago} onChange={handleAbonoChange}>
-              <option value="Efectivo">Efectivo</option>
-              <option value="Transferencia">Transferencia</option>
-              <option value="Tarjeta">Tarjeta</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
+              <div>
+                <label>Referencia</label>
+                <input name="referencia" value={abonoForm.referencia} onChange={handleAbonoChange} placeholder="N° transferencia, recibo, nota..." maxLength="255" />
+              </div>
 
-          <div>
-            <label>Referencia</label>
-            <input name="referencia" value={abonoForm.referencia} onChange={handleAbonoChange} placeholder="N° transferencia, recibo, nota..." maxLength="255" />
-          </div>
+              <div>
+                <label>Comprobante</label>
+                <input type="file" name="comprobante" accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf" onChange={handleAbonoChange} />
+              </div>
 
-          <div>
-            <label>Comprobante</label>
-            <input type="file" name="comprobante" accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf" onChange={handleAbonoChange} />
-          </div>
-
-          <div className={styles["field-full"]}>
-            <label>Observación</label>
-            <textarea name="observacion" value={abonoForm.observacion} onChange={handleAbonoChange} placeholder="Detalles del pago o comprobante..." maxLength="2000" />
-          </div>
+              <div className={styles["field-full"]}>
+                <label>Observación</label>
+                <textarea name="observacion" value={abonoForm.observacion} onChange={handleAbonoChange} placeholder="Detalles del pago o comprobante..." maxLength="2000" />
+              </div>
+            </>
+          )}
         </div>
 
-        <div className={styles["modal-actions"]}>
-          <button type="button" onClick={cerrarModalDocumento} className={styles["btn-light"]}>Cancelar</button>
-          <button type="button" onClick={guardarAbono} className={styles["btn-primary"]} disabled={guardandoDocumento}>
-            {guardandoDocumento ? "Guardando..." : (documentoEnEdicion ? "Actualizar abono" : "Registrar abono")}
-          </button>
-        </div>
+        {facturasPendientes.length > 0 && (
+          <div className={styles["modal-actions"]}>
+            <button type="button" onClick={cerrarModalDocumento} className={styles["btn-light"]}>Cancelar</button>
+            <button type="button" onClick={guardarAbono} className={styles["btn-primary"]} disabled={guardandoDocumento}>
+              {guardandoDocumento ? "Guardando..." : (documentoEnEdicion ? "Actualizar abono" : "Registrar abono")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1753,7 +1740,7 @@ const guardarDocumentoComercial = async () => {
                               Number(doc.activo) !== 1
                                 ? styles["pill-gray"]
                                 : doc.estado === "Pagada" ||
-                                  doc.estado === "Aceptada" ||
+                                  doc.estado === "Aprobada" ||
                                   doc.estado === "Activo" ||
                                   doc.estado === "Efectivo"
                                 ? styles["pill-success"]
@@ -1783,6 +1770,9 @@ const guardarDocumentoComercial = async () => {
                                 <>
                                   <button type="button" onClick={() => accionDocumento("modificar", doc)}>Modificar</button>
                                   <button type="button" onClick={() => accionDocumento("desactivar", doc)}>Desactivar</button>
+                                  {doc.tipo_documento === "Cotización" && doc.estado !== "Aprobada" && (
+                                    <button type="button" onClick={() => accionDocumento("aprobar", doc)} className={styles["btn-aprobar"]}>Aprobar</button>
+                                  )}
                                 </>
                               ) : (
                                 <button type="button" onClick={() => accionDocumento("activar", doc)}>Activar</button>

@@ -73,7 +73,7 @@ export default function CotizarCliente() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("user_salerp");
+      const raw = sessionStorage.getItem("user_salerp");
       if (raw) {
         const datos = JSON.parse(raw);
         // eslint-disable-next-line react-hooks/set-state-in-effect

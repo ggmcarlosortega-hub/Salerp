@@ -808,7 +808,7 @@ export default function GestionProductos() {
                     <select name="id_insumo" value={costoForm.id_insumo} onChange={handleCostoChange}>
                       <option value="">Seleccionar insumo</option>
                       {insumosSistema.map(insumo => (
-                        <option key={insumo.id_insumo} value={insumo.id_insumo}>{insumo.nombre} · {insumo.proveedor || "Sin proveedor"} · Stock: {Number(insumo.stock_actual || 0).toFixed(3)} {insumo.unidad_medida}</option>
+                        <option key={insumo.id_insumo} value={insumo.id_insumo}>{insumo.nombre} · {insumo.proveedor || "Sin proveedor"} · Stock: {Number(insumo.stock_actual || 0).toFixed(2)} {insumo.unidad_medida}</option>
                       ))}
                     </select>
                   </div>

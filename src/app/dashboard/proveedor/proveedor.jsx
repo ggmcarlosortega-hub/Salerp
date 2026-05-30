@@ -704,20 +704,18 @@ export default function GestionProveedores() {
                   <label>Stock inicial</label>
                   <input
                     type="number"
-                    step="0.001"
+                    step="0.01"
                     min="0"
                     name="stock_actual"
                     value={insumoForm.stock_actual}
                     onChange={handleInsumoChange}
-                    placeholder="0"
                   />
                 </div>
-
                 <div>
-                  <label>Stock mínimo</label>
+                  <label>Stock Mínimo</label>
                   <input
                     type="number"
-                    step="0.001"
+                    step="0.01"
                     min="0"
                     name="stock_minimo"
                     value={insumoForm.stock_minimo}
@@ -780,7 +778,7 @@ export default function GestionProveedores() {
                             {item.descripcion && <span>{item.descripcion}</span>}
                           </td>
                           <td>{item.unidad_medida}</td>
-                          <td>{Number(item.stock_actual || 0).toFixed(3)}</td>
+                          <td>{Number(item.stock_actual || 0).toFixed(2)}</td>
                           <td>{formatoMoneda(item.costo_unitario)}</td>
                           <td>
                             {formatoMoneda(
@@ -836,7 +834,7 @@ export default function GestionProveedores() {
                   <select name="id_insumo" value={entradaForm.id_insumo} onChange={handleEntradaChange}>
                     <option value="">Seleccionar insumo</option>
                     {insumos.map(item => (
-                      <option key={item.id_insumo} value={item.id_insumo}>{item.nombre} - Stock: {Number(item.stock_actual || 0).toFixed(3)}</option>
+                      <option key={item.id_insumo} value={item.id_insumo}>{item.nombre} - Stock: {Number(item.stock_actual || 0).toFixed(2)}</option>
                     ))}
                   </select>
                 </div>
@@ -845,8 +843,8 @@ export default function GestionProveedores() {
                   <label>Cantidad</label>
                   <input
                     type="number"
-                    step="0.001"
-                    min="0.001"
+                    step="0.01"
+                    min="0.01"
                     name="cantidad"
                     value={entradaForm.cantidad}
                     onChange={handleEntradaChange}
