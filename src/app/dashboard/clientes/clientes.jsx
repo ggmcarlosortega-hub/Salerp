@@ -1055,7 +1055,7 @@ const guardarDocumentoComercial = async () => {
                   >
                     <option value="">Seleccionar producto</option>
                     {productos.map(p => (
-                      <option key={p.id_producto} value={p.id_producto}>{p.nombre} - {formatoMoneda(p.precio_venta)}</option>
+                      <option key={p.id_producto} value={p.id_producto}>{p.nombre} - Stock: {Number(p.stock || 0).toFixed(0)} - {formatoMoneda(p.precio_venta)}</option>
                     ))}
                   </select>
                 </div>

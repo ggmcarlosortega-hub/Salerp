@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import styles from "./css/proveedor.module.css";
 import { useNotification } from "../../../context/NotificationContext";
 
-import { API_PROVEEDOR, getHeaders } from "@/utils/api";
+import { API_PROVEEDOR, API_PRODUCTO, getHeaders } from "@/utils/api";
 
 const proveedorInicial = {
   id_proveedor: "",
@@ -24,6 +24,8 @@ const insumoInicial = {
   costo_unitario: "",
   stock_actual: 0,
   stock_minimo: 0,
+  id_categoria_insumo: "",
+  id_tipo_producto: "",
 };
 
 const entradaInicial = {
@@ -43,10 +45,13 @@ export default function GestionProveedores() {
 
   const [insumoForm, setInsumoForm] = useState(insumoInicial);
   const [entradaForm, setEntradaForm] = useState(entradaInicial);
+  const [categoriasInsumo, setCategoriasInsumo] = useState([]);
+  const [categoriasProducto, setCategoriasProducto] = useState([]);
 
   const [modoEdicion, setModoEdicion] = useState(false);
-  const [busqueda, setBusqueda] = useState("");
-  const [filtroEst, setFiltroEst] = useState("1");
+  const [busqueda, setBusqueda] = useState(""); // Filtro para lista de proveedores
+  const [filtroEst, setFiltroEst] = useState("1"); // Filtro de estado para proveedores
+  const [busquedaInsumo, setBusquedaInsumo] = useState(""); // Filtro para tabla de inventario de insumos
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
 
@@ -71,6 +76,8 @@ export default function GestionProveedores() {
 
   useEffect(() => {
     cargarProveedores();
+    cargarCategoriasInsumo();
+    cargarCategoriasProducto();
   }, []);
 
   const formatoMoneda = (valor) => {
@@ -81,6 +88,10 @@ export default function GestionProveedores() {
     }).format(Number(valor || 0));
   };
 
+  // ============================================================
+  // FILTROS: Lista de proveedores
+  // Filtra por nombre, nit, correo o telefono + estado activo/inactivo
+  // ============================================================
   const proveedoresFiltrados = useMemo(() => {
     const texto = busqueda.toLowerCase();
 
@@ -95,6 +106,22 @@ export default function GestionProveedores() {
     });
   }, [lista, busqueda, filtroEst]);
 
+  // ============================================================
+  // FILTRO: Inventario de insumos del proveedor seleccionado
+  // Filtra por ID o nombre del insumo
+  // ============================================================
+  const insumosFiltrados = useMemo(() => {
+    if (!busquedaInsumo.trim()) return insumos;
+    const texto = busquedaInsumo.toLowerCase();
+    return insumos.filter((i) =>
+      String(i.id_insumo).toLowerCase().includes(texto) ||
+      i.nombre?.toLowerCase().includes(texto)
+    );
+  }, [insumos, busquedaInsumo]);
+
+  // ============================================================
+  // ESTADISTICAS: Totales del inventario de insumos
+  // ============================================================
   const totalInsumos = insumos.length;
 
   const valorInventario = insumos.reduce((total, item) => {
@@ -105,6 +132,11 @@ export default function GestionProveedores() {
     return Number(item.stock_actual || 0) <= Number(item.stock_minimo || 0);
   }).length;
 
+  // ============================================================
+  // FUNCIONES DE CARGA DE DATOS DESDE LA API
+  // ============================================================
+
+  // Carga la lista completa de proveedores
   const cargarProveedores = async () => {
     try {
       setCargando(true);
@@ -125,6 +157,31 @@ export default function GestionProveedores() {
     }
   };
 
+  // Carga las categorias de insumos (para el formulario de registro de insumos)
+  const cargarCategoriasInsumo = async () => {
+    try {
+      const res = await fetch(`${API_PROVEEDOR}/insumos/categorias`, { headers: getHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al cargar categorias.");
+      setCategoriasInsumo(data);
+    } catch (err) {
+      console.error(err.message);
+    }
+  };
+
+  // Carga las categorias de productos (para el formulario de registro de insumos)
+  const cargarCategoriasProducto = async () => {
+    try {
+      const res = await fetch(`${API_PRODUCTO}/categorias`, { headers: getHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al cargar categorias producto.");
+      setCategoriasProducto(data);
+    } catch (err) {
+      console.error(err.message);
+    }
+  };
+
+  // Carga el detalle de un proveedor + sus insumos y movimientos (llamado al abrir detalle)
   const cargarDetalleProveedor = async (idProveedor) => {
     try {
       setCargando(true);
@@ -147,14 +204,20 @@ export default function GestionProveedores() {
     }
   };
 
+  // ============================================================
+  // NAVEGACION: Abre el detalle de un proveedor seleccionado
+  // Resetea filtros de inventario al entrar
+  // ============================================================
   const abrirDetalle = async (p) => {
     setMensaje("");
     setError("");
     setModoEdicion(false);
+    setBusquedaInsumo(""); // Limpia filtro de insumos al abrir detalle
     setVistaActual("detalle");
     await cargarDetalleProveedor(p.id_proveedor);
   };
 
+  // Abre el modal para registrar un nuevo proveedor
   const nuevoProveedor = () => {
     setProveedor(proveedorInicial);
     setInsumos([]);
@@ -167,11 +230,16 @@ export default function GestionProveedores() {
     setMostrarModalProveedor(true);
   };
 
+  // Abre el modal en modo edicion para modificar el proveedor actual
   const abrirEdicionProveedor = async () => {
     setModoEdicion(true);
     setMostrarModalProveedor(true);
   };
 
+  // ============================================================
+  // NAVEGACION: Vuelve a la lista de proveedores desde el detalle
+  // Resetea todos los formularios y filtros
+  // ============================================================
   const volverLista = () => {
     setProveedor(proveedorInicial);
     setInsumos([]);
@@ -179,10 +247,16 @@ export default function GestionProveedores() {
     setInsumoForm(insumoInicial);
     setEntradaForm(entradaInicial);
     setModoEdicion(false);
+    setBusquedaInsumo(""); // Limpia filtro de insumos
     setVistaActual("lista");
     cargarProveedores();
   };
 
+  // ============================================================
+  // HANDLERS: Cambios en formularios
+  // ============================================================
+
+  // Handler generico para el formulario del proveedor (modal)
   const handleProveedorChange = (e) => {
     const { name, value } = e.target;
 
@@ -192,6 +266,7 @@ export default function GestionProveedores() {
     }));
   };
 
+  // Handler para el formulario de registro de nuevo insumo
   const handleInsumoChange = (e) => {
     const { name, value } = e.target;
 
@@ -201,6 +276,7 @@ export default function GestionProveedores() {
     }));
   };
 
+  // Handler para el formulario de entrada de inventario (compra de insumos)
   const handleEntradaChange = (e) => {
     const { name, value } = e.target;
 
@@ -260,6 +336,7 @@ export default function GestionProveedores() {
     }
   };
 
+  // Registra un nuevo insumo asociado al proveedor actual
   const agregarInsumo = async (e) => {
     e.preventDefault();
 
@@ -304,6 +381,7 @@ export default function GestionProveedores() {
     }
   };
 
+  // Registra una entrada de inventario (compra/aumento de stock de un insumo)
   const registrarEntrada = async (e) => {
     e.preventDefault();
 
@@ -351,6 +429,11 @@ export default function GestionProveedores() {
     }
   };
 
+  // ============================================================
+  // ACCIONES: Insumos
+  // ============================================================
+
+  // Desactiva (elimina logicamente) un insumo del proveedor
   const eliminarInsumo = async (idInsumo) => {
     try {
       setMensaje("");
@@ -376,22 +459,14 @@ export default function GestionProveedores() {
     }
   };
 
+  // Confirma la desactivacion del proveedor actual (modal de confirmacion)
   const confirmarDesactivacion = async () => {
     try {
       setMensaje("");
       setError("");
-
-      const response = await fetch(`${API_PROVEEDOR}/${proveedor.id_proveedor}`, {
-        method: "DELETE",
-        headers: getHeaders(),
-      });
-
+      const response = await fetch(`${API_PROVEEDOR}/${proveedor.id_proveedor}`, { method: "DELETE", headers: getHeaders() });
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error al desactivar proveedor.");
-      }
-
+      if (!response.ok) throw new Error(data.error || "Error al desactivar proveedor.");
       setMostrarModalConfirmacion(false);
       setMensaje(data?.message || "Proveedor desactivado correctamente.");
       volverLista();
@@ -401,6 +476,7 @@ export default function GestionProveedores() {
     }
   };
 
+  // Reactiva un proveedor previamente desactivado
   const activarProveedor = async () => {
     try {
       setMensaje("");
@@ -433,6 +509,10 @@ export default function GestionProveedores() {
             </button>
           </section>
 
+      {/* ============================================================ */}
+      {/* VISTA: Lista de proveedores */}
+      {/* Muestra tabla con todos los proveedores y filtros de busqueda */}
+      {/* ============================================================ */}
       {vistaActual === "lista" && (
         <>
           <section className={styles["panel"]}>
@@ -531,6 +611,10 @@ export default function GestionProveedores() {
         </>
       )}
 
+      {/* ============================================================ */}
+      {/* VISTA: Detalle del proveedor seleccionado */}
+      {/* Muestra info del proveedor + formularios + inventario + movimientos */}
+      {/* ============================================================ */}
       {vistaActual === "detalle" && (
         <>
           <button onClick={volverLista} className={styles["back-btn"]}>
@@ -605,6 +689,7 @@ export default function GestionProveedores() {
             </article>
           </section>
 
+          {/* Seccion: Informacion del proveedor (datos generales) */}
           <section className={styles["content-grid"]}>
             <div className={styles["card"]}>
               <div className={styles["card-header"]}>
@@ -650,10 +735,11 @@ export default function GestionProveedores() {
               </div>
             </div>
 
-            <section className={styles["card"]}>
-              <div className={styles["card-header"]}>
-                <div>
-                  <h2>Registrar insumo</h2>
+          {/* Seccion: Registrar insumo (formulario para crear nuevo insumo del proveedor) */}
+          <section className={styles["card"]}>
+            <div className={styles["card-header"]}>
+              <div>
+                <h2>Registrar insumo</h2>
                   <p>Crea materias primas o productos comprados a este proveedor.</p>
                 </div>
               </div>
@@ -724,16 +810,36 @@ export default function GestionProveedores() {
                   />
                 </div>
 
-                <div className={styles["field-full"]}>
-                  <label>Descripción</label>
+<div className={styles["field-full"]}>
+                  <label>Descripcion</label>
                   <input
                     type="text"
                     name="descripcion"
                     value={insumoForm.descripcion}
                     onChange={handleInsumoChange}
-                    placeholder="Descripción opcional"
+                    placeholder="Descripcion opcional"
                     maxLength="500"
                   />
+                </div>
+
+                <div>
+                  <label>Categoria de Insumo</label>
+                  <select name="id_categoria_insumo" value={insumoForm.id_categoria_insumo} onChange={handleInsumoChange}>
+                    <option value="">Sin categoria</option>
+                    {categoriasInsumo.map(c => (
+                      <option key={c.id_categoria_insumo} value={c.id_categoria_insumo}>{c.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label>Usar en producto tipo</label>
+                  <select name="id_tipo_producto" value={insumoForm.id_tipo_producto} onChange={handleInsumoChange}>
+                    <option value="">Todos los tipos</option>
+                    {categoriasProducto.map(c => (
+                      <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <button type="submit" className={styles["btn-primary"]}>
@@ -743,6 +849,7 @@ export default function GestionProveedores() {
             </section>
           </section>
 
+          {/* Seccion: Inventario del proveedor (tabla de insumos + buscador) */}
           <section className={styles["content-grid"]}>
             <section className={styles["card"]}>
               <div className={styles["card-header"]}>
@@ -750,6 +857,17 @@ export default function GestionProveedores() {
                   <h2>Inventario del proveedor</h2>
                   <p>Insumos disponibles para fabricar productos o registrar costos.</p>
                 </div>
+              </div>
+
+              {/* Barra de busqueda para filtrar insumos por ID o nombre */}
+              <div style={{ padding: "0 1.1rem 0.75rem" }}>
+                <input
+                  type="text"
+                  placeholder="Buscar por ID o nombre del insumo..."
+                  value={busquedaInsumo}
+                  onChange={(e) => setBusquedaInsumo(e.target.value)}
+                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: "10px", fontSize: "0.875rem" }}
+                />
               </div>
 
               <div className={styles["table-wrap"]}>
@@ -767,7 +885,7 @@ export default function GestionProveedores() {
                   </thead>
 
                   <tbody>
-                    {insumos.map((item) => {
+                    {insumosFiltrados.map((item) => {
                       const bajoStock =
                         Number(item.stock_actual || 0) <= Number(item.stock_minimo || 0);
 
@@ -808,10 +926,12 @@ export default function GestionProveedores() {
                       );
                     })}
 
-                    {insumos.length === 0 && (
+                    {insumosFiltrados.length === 0 && (
                       <tr>
                         <td colSpan="7" className={styles["empty"]}>
-                          Este proveedor todavía no tiene insumos registrados.
+                          {insumos.length === 0
+                            ? "Este proveedor todavía no tiene insumos registrados."
+                            : "Ningun insumo coincide con los filtros aplicados."}
                         </td>
                       </tr>
                     )}
@@ -820,6 +940,7 @@ export default function GestionProveedores() {
               </div>
             </section>
 
+            {/* Seccion: Entrada de inventario (formulario para comprar insumos) */}
             <section className={styles["card"]}>
               <div className={styles["card-header"]}>
                 <div>
@@ -884,6 +1005,7 @@ export default function GestionProveedores() {
             </section>
           </section>
 
+          {/* Seccion: Historial de movimientos (tabla de entradas/salidas de inventario) */}
           <section className={styles["card"]}>
             <div className={styles["card-header"]}>
               <div>
@@ -945,6 +1067,9 @@ export default function GestionProveedores() {
         </>
       )}
 
+      {/* ============================================================ */}
+      {/* MODAL: Registrar / Editar proveedor */}
+      {/* ============================================================ */}
       {mostrarModalProveedor && (
         <div className={styles["modal-overlay"]} onClick={() => setMostrarModalProveedor(false)}>
           <div className={`${styles.modal} ${styles["modal-large"]}`} onClick={(e) => e.stopPropagation()}>
@@ -999,6 +1124,9 @@ export default function GestionProveedores() {
         </div>
       )}
 
+      {/* ============================================================ */}
+      {/* MODAL: Confirmar desactivacion de proveedor */}
+      {/* ============================================================ */}
       {mostrarModalConfirmacion && (
         <div className={styles["modal-overlay"]}>
           <div className={styles["modal"]}>

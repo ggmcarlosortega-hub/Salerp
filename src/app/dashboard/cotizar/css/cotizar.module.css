@@ -293,11 +293,16 @@
 
 .product-card-footer {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 0.75rem 1.1rem;
   border-top: 1px solid #f3f4f6;
-  gap: 0.5rem;
+}
+
+.product-card-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .product-card-price {
@@ -310,6 +315,12 @@
   font-size: 0.65rem;
   color: #9ca3af;
   font-weight: 400;
+}
+
+.product-card-stock {
+  font-size: 0.7rem;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 .card-add-btn {

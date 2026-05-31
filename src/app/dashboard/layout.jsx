@@ -26,6 +26,17 @@ const MaquinariaIcon = () => <Image width={32} height={32} src="/excavador.png" 
 const ProductosIcon = () => <Image width={32} height={32} src="/agregar-producto.png" alt="productos" />;
 const GastoIcon = () => <Image width={32} height={32} src="/gastos.png" alt="gastos" />;
 const ProveedorIcon = () => <Image width={32} height={32} src="/proveedor.png" alt='proveedor' />;
+const FabricacionIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+  </svg>
+);
+const ComprasIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+    <line x1="1" y1="10" x2="23" y2="10"/>
+  </svg>
+);
 
 const CotizarIcon = () => (
   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -124,6 +135,8 @@ export default function DashboardLayout({ children }) {
               <SidebarItem href="/dashboard/productos" icon={ProductosIcon} label="Productos" title="Detalles de los productos" />
               <SidebarItem href="/dashboard/gastos" icon={GastoIcon} label="Gastos" title="Análisis de los gastos" />
               <SidebarItem href="/dashboard/proveedor" icon={ProveedorIcon} label="Proveedor" title="Gestion de Proveedor" />
+              <SidebarItem href="/dashboard/fabricacion" icon={FabricacionIcon} label="Fabricacion" title="Ordenes de fabricacion" />
+              <SidebarItem href="/dashboard/compras" icon={ComprasIcon} label="Compras" title="Compras a proveedores" />
             </>
           ) : (
             <>

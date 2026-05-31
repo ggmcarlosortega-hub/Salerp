@@ -28,6 +28,7 @@ export default function DashboardHome() {
   const [productosData, setProductosData] = useState(null);
   const [cotizacionesData, setCotizacionesData] = useState(null);
   const [contratosData, setContratosData] = useState(null);
+  const [stockAlerts, setStockAlerts] = useState(null);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -69,6 +70,18 @@ export default function DashboardHome() {
     cargarContratos();
   }, [selectedMes, selectedYear]);
 
+  useEffect(() => {
+    const cargarStockAlerts = async () => {
+      try {
+        const res = await apiFetch('http://localhost:3001/api/fabricacion/stock-bajo');
+        setStockAlerts(res);
+      } catch (error) {
+        console.error("Error cargando alertas de stock:", error);
+      }
+    };
+    cargarStockAlerts();
+  }, []);
+
   if (!data) return <div className="p-10 text-center text-gray-500 font-bold">Cargando estadísticas de SalERP...</div>;
 
   return (
@@ -88,6 +101,54 @@ export default function DashboardHome() {
         <StatCard title="Utilidad" value={`$${data.tarjetas.balance}`} icon={<TrendingUp/>} color="text-blue-600" bg="bg-blue-50" />
         <StatCard title="Alertas Stock" value={data.tarjetas.alertas} icon={<Package/>} color="text-amber-600" bg="bg-amber-50" footer="Productos con 3 o menos unidades" />
       </div>
+
+      {stockAlerts && (stockAlerts.productos?.length > 0 || stockAlerts.insumos?.length > 0) && (
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Package size={20} className="text-amber-600" />
+              <h3 className="text-lg font-bold text-gray-800">Alertas de Stock Bajo</h3>
+            </div>
+            <span className="text-sm font-medium text-amber-600">
+              {((stockAlerts.productos?.length || 0) + (stockAlerts.insumos?.length || 0))} items en alerta
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {stockAlerts.productos?.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-600 mb-2">Productos</h4>
+                <div className="space-y-2">
+                  {stockAlerts.productos.slice(0, 5).map(p => (
+                    <div key={p.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{p.nombre}</p>
+                        <p className="text-xs text-red-500">Stock: {Number(p.stock).toFixed(2)} / Min: {Number(p.stock_minimo).toFixed(2)}</p>
+                      </div>
+                      <span className="text-xs font-bold text-red-600">{p.tipo_producto || 'Producto'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {stockAlerts.insumos?.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-600 mb-2">Insumos</h4>
+                <div className="space-y-2">
+                  {stockAlerts.insumos.slice(0, 5).map(i => (
+                    <div key={i.id} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-100">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{i.nombre}</p>
+                        <p className="text-xs text-orange-500">Stock: {Number(i.stock).toFixed(2)} / Min: {Number(i.stock_minimo).toFixed(2)}</p>
+                      </div>
+                      <span className="text-xs text-orange-600">{i.proveedor || 'Sin prov.'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <h3 className="text-lg font-bold text-gray-800 mb-6">Comparativa Mensual: Ingresos vs Gastos</h3>

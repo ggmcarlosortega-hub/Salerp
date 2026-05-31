@@ -307,7 +307,6 @@ export default function GestionProductos() {
     formData.append("tipo_producto", producto.tipo_producto || "Comprado");
     formData.append("margen_porcentaje", producto.margen_porcentaje || 0);
     formData.append("iva_porcentaje", producto.iva_porcentaje ?? 0);
-    formData.append("stock", esNuevoProducto ? 0 : producto.stock || 0);
     formData.append("unidad_medida", producto.unidad_medida || "Unidad");
     formData.append("visible_cliente", producto.visible_cliente ? 1 : 0);
     formData.append("destacado", producto.destacado ? 1 : 0);
@@ -743,10 +742,10 @@ export default function GestionProductos() {
                         min="0"
                         step="0.001"
                         value={producto.stock || 0}
-                        onChange={handleProductoChange}
-                        disabled={!modoEdicion || producto.tipo_producto === "Servicio" || esNuevoProducto}
-                        title={esNuevoProducto ? "El stock se crea en 0. Podrás modificarlo al editar el producto." : ""}
+                        disabled
+                        title="El stock se modifica exclusivamente via Compras o Fabrication"
                       />
+                      <small className={styles["field-help"]}>Se modifica solo via Compras o Fabricacion</small>
                     </div>
 
                     <div className={styles["field-full"]}>

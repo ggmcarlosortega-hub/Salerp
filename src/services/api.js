@@ -9,12 +9,14 @@ export const API_DOCUMENTO = `${API_BASE}/api/documento`;
 export const API_DASHBOARD = `${API_BASE}/api/dashboard`;
 export const API_EMPRESA = `${API_BASE}/api/empresa`;
 export const API_AUTH = `${API_BASE}/api/auth`;
+export const API_FABRICACION = `${API_BASE}/api/fabricacion`;
+export const API_COMPRA = `${API_BASE}/api/compra`;
 
 export const getHeaders = (includeContentType = true) => {
   const raw = typeof window !== 'undefined' ? sessionStorage.getItem('user_salerp') : null;
   const usuario = raw ? JSON.parse(raw) : {};
   const headers = {
-    'x-empresa-id': usuario.id_empresa || '',
+    'x-empresa-id': usuario.id_empresa || '1',
     'x-user-id': usuario.id_acceso || ''
   };
 

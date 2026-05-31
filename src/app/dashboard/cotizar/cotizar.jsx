@@ -367,10 +367,15 @@ export default function CotizarCliente() {
                       </p>
                     </div>
                     <div className={styles["product-card-footer"]}>
-                      <span className={styles["product-card-price"]}>
-                        {formatoMoneda(producto.precio_venta)}
-                        <small className={styles["product-card-unit"]}> /unidad</small>
-                      </span>
+                      <div className={styles["product-card-price-row"]}>
+                        <span className={styles["product-card-price"]}>
+                          {formatoMoneda(producto.precio_venta)}
+                          <small className={styles["product-card-unit"]}> /unidad</small>
+                        </span>
+                        <span className={styles["product-card-stock"]}>
+                          Stock: {Number(producto.stock || 0).toFixed(0)}
+                        </span>
+                      </div>
                       <button
                         className={`${styles["card-add-btn"]} ${styles["add"]}`}
                         onClick={(e) => { e.stopPropagation(); agregarAlCarrito(producto); }}
