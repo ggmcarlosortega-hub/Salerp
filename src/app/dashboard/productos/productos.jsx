@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useNotification } from "../../../context/NotificationContext";
 import styles from "./css/productos.module.css";
 
+import { API_PRODUCTO, getHeaders, getFileHeaders } from "@/utils/api";
+
 const API_BASE = "http://localhost:3001";
-const API_PRODUCTO = `${API_BASE}/api/producto`;
 const API_INSUMOS = `${API_PRODUCTO}/insumos`;
 
 const productoInicial = {
@@ -19,6 +21,7 @@ const productoInicial = {
   costo_total: 0,
   margen_valor: 0,
   margen_porcentaje: 30,
+  iva_porcentaje: 0,
   stock: 0,
   unidad_medida: "Unidad",
   visible_cliente: 1,
@@ -65,6 +68,24 @@ export default function GestionProductos() {
   const [cargando, setCargando] = useState(false);
   const [mostrarModalConfirmacion, setMostrarModalConfirmacion] = useState(false);
   const [mostrarModalCategoria, setMostrarModalCategoria] = useState(false);
+  const [mostrarModalNuevoProducto, setMostrarModalNuevoProducto] = useState(false);
+  const [mostrarGestionCategorias, setMostrarGestionCategorias] = useState(false);
+  const [todasCategorias, setTodasCategorias] = useState([]);
+  const { notify } = useNotification();
+
+  useEffect(() => {
+    if (mensaje) {
+      notify({ mensaje, tipo: "exito" });
+      setMensaje("");
+    }
+  }, [mensaje]);
+
+  useEffect(() => {
+    if (error) {
+      notify({ mensaje: error, tipo: "error" });
+      setError("");
+    }
+  }, [error]);
 
   useEffect(() => {
     cargarProductos();
@@ -118,8 +139,10 @@ export default function GestionProductos() {
   const precioVentaCalculado = useMemo(() => {
     const costo = Number(producto.costo_total || costoCalculadoLocal || 0);
     const margen = Number(producto.margen_porcentaje || 0);
-    return costo + costo * (margen / 100);
-  }, [producto.costo_total, producto.margen_porcentaje, costoCalculadoLocal]);
+    const iva = Number(producto.iva_porcentaje || 0);
+    const precioSinIva = costo + costo * (margen / 100);
+    return precioSinIva + precioSinIva * (iva / 100);
+  }, [producto.costo_total, producto.margen_porcentaje, producto.iva_porcentaje, costoCalculadoLocal]);
 
   const productosFiltrados = useMemo(() => {
     const texto = busqueda.toLowerCase();
@@ -137,7 +160,7 @@ export default function GestionProductos() {
     try {
       setCargando(true);
       setError("");
-      const response = await fetch(API_PRODUCTO);
+      const response = await fetch(API_PRODUCTO, { headers: getHeaders() });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Error al cargar productos.");
       setLista(data);
@@ -150,10 +173,16 @@ export default function GestionProductos() {
 
   const cargarCategorias = async () => {
     try {
-      const response = await fetch(`${API_PRODUCTO}/categorias`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Error al cargar categorías.");
-      setCategorias(data);
+      const [resActivas, resTodas] = await Promise.all([
+        fetch(`${API_PRODUCTO}/categorias`, { headers: getHeaders() }),
+        fetch(`${API_PRODUCTO}/categorias?todas=1`, { headers: getHeaders() }),
+      ]);
+      const activas = await resActivas.json();
+      const todas = await resTodas.json();
+      if (!resActivas.ok) throw new Error(activas.error || "Error al cargar categorías.");
+      if (!resTodas.ok) throw new Error(todas.error || "Error al cargar categorías.");
+      setCategorias(activas);
+      setTodasCategorias(todas);
     } catch (err) {
       setError(err.message);
     }
@@ -161,7 +190,7 @@ export default function GestionProductos() {
 
   const cargarInsumosSistema = async () => {
     try {
-      const response = await fetch(API_INSUMOS);
+      const response = await fetch(API_INSUMOS, { headers: getHeaders() });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Error al cargar insumos.");
       setInsumosSistema(data);
@@ -174,7 +203,7 @@ export default function GestionProductos() {
     try {
       setCargando(true);
       setError("");
-      const response = await fetch(`${API_PRODUCTO}/${idProducto}`);
+      const response = await fetch(`${API_PRODUCTO}/${idProducto}`, { headers: getHeaders() });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Error al cargar el detalle del producto.");
       setProducto({ ...data.producto, margen_porcentaje: data.producto.margen_porcentaje ?? 30 });
@@ -205,7 +234,34 @@ export default function GestionProductos() {
     setModoEdicion(true);
     setMensaje("");
     setError("");
-    setVistaActual("detalle");
+    setMostrarModalNuevoProducto(true);
+  };
+
+  const guardarYVerDetalle = async (e) => {
+    e.preventDefault();
+    if (!producto.nombre.trim()) {
+      setError("El nombre del producto es obligatorio.");
+      return;
+    }
+    if (Number(producto.margen_porcentaje) < 0) {
+      setError("El porcentaje de ganancia no puede ser negativo.");
+      return;
+    }
+    try {
+      const response = await fetch(API_PRODUCTO, {
+        method: "POST",
+        headers: getFileHeaders(),
+        body: crearFormDataProducto(),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Error al guardar el producto.");
+      setMostrarModalNuevoProducto(false);
+      setVistaActual("detalle");
+      await cargarDetalleProducto(data.id_producto);
+      cargarProductos();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const volverLista = () => {
@@ -274,7 +330,7 @@ export default function GestionProductos() {
     formData.append("descripcion", producto.descripcion || "");
     formData.append("tipo_producto", producto.tipo_producto || "Comprado");
     formData.append("margen_porcentaje", producto.margen_porcentaje || 0);
-    formData.append("stock", esNuevoProducto ? 0 : producto.stock || 0);
+    formData.append("iva_porcentaje", producto.iva_porcentaje ?? 0);
     formData.append("unidad_medida", producto.unidad_medida || "Unidad");
     formData.append("visible_cliente", producto.visible_cliente ? 1 : 0);
     formData.append("destacado", producto.destacado ? 1 : 0);
@@ -293,7 +349,7 @@ export default function GestionProductos() {
     try {
       const response = await fetch(`${API_PRODUCTO}/categorias`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify(categoriaForm),
       });
       const data = await response.json();
@@ -328,6 +384,7 @@ export default function GestionProductos() {
         esEdicion ? `${API_PRODUCTO}/${producto.id_producto}` : API_PRODUCTO,
         {
           method: esEdicion ? "PUT" : "POST",
+          headers: getFileHeaders(),
           body: crearFormDataProducto(),
         }
       );
@@ -372,7 +429,7 @@ export default function GestionProductos() {
     try {
       const response = await fetch(`${API_PRODUCTO}/${producto.id_producto}/costos`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify(costoForm),
       });
       const data = await response.json();
@@ -391,7 +448,7 @@ export default function GestionProductos() {
     try {
       setMensaje("");
       setError("");
-      const response = await fetch(`${API_PRODUCTO}/costos/${idDetalle}`, { method: "DELETE" });
+      const response = await fetch(`${API_PRODUCTO}/costos/${idDetalle}`, { method: "DELETE", headers: getHeaders() });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Error al eliminar el costo.");
       setMensaje("Costo eliminado correctamente. El precio de venta se recalculó automáticamente.");
@@ -402,11 +459,41 @@ export default function GestionProductos() {
     }
   };
 
+  const desactivarCategoria = async (id) => {
+    try {
+      setMensaje("");
+      setError("");
+      const response = await fetch(`${API_PRODUCTO}/categorias/${id}`, { method: "DELETE", headers: getHeaders() });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Error al desactivar categoría.");
+      setMensaje("Categoría y sus productos desactivados correctamente.");
+      await cargarCategorias();
+      cargarProductos();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const activarCategoria = async (id) => {
+    try {
+      setMensaje("");
+      setError("");
+      const response = await fetch(`${API_PRODUCTO}/categorias/${id}/activar`, { method: "PUT", headers: getHeaders() });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Error al activar categoría.");
+      setMensaje("Categoría y sus productos activados correctamente.");
+      await cargarCategorias();
+      cargarProductos();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const confirmarDesactivacion = async () => {
     try {
       setMensaje("");
       setError("");
-      const response = await fetch(`${API_PRODUCTO}/${producto.id_producto}`, { method: "DELETE" });
+      const response = await fetch(`${API_PRODUCTO}/${producto.id_producto}`, { method: "DELETE", headers: getHeaders() });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Error al desactivar producto.");
       setMostrarModalConfirmacion(false);
@@ -419,9 +506,6 @@ export default function GestionProductos() {
 
   return (
     <div className={styles["page"]}>
-      {mensaje && <div className={styles["alerta-exito"]}>{mensaje}</div>}
-      {error && <div className={styles["alerta-error"]}>{error}</div>}
-
       {vistaActual === "lista" && (
         <>
           <section className={styles["hero"]}>
@@ -441,6 +525,7 @@ export default function GestionProductos() {
                 <h2>Productos registrados</h2>
                 <p>Estos productos podrán alimentar luego el catálogo de clientes.</p>
               </div>
+<<<<<<< HEAD
               <div className={styles["search-box"]}>
                 <span>⌕</span>
                 <input
@@ -449,6 +534,27 @@ export default function GestionProductos() {
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                 />
+=======
+              <div className={styles["header-actions"]}>
+                <div className={styles["search-box"]}>
+                  <span>⌕</span>
+                  <input
+                    type="text"
+                    placeholder="Buscar producto..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                  />
+                </div>
+                <select value={categoriaFiltro} onChange={(e) => setCategoriaFiltro(e.target.value)}>
+                  <option value="">Todas las categorías</option>
+                  {categorias.map(c => (
+                    <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => setMostrarGestionCategorias(true)} className={styles["btn-light"]}>
+                  Gestionar categorías
+                </button>
+>>>>>>> jjmp
               </div>
               <select
                 className={styles["filter-select"]}
@@ -471,6 +577,7 @@ export default function GestionProductos() {
                     <th>Costo</th>
                     <th>Ganancia</th>
                     <th>Precio venta</th>
+                    <th>Estado</th>
                     <th>Cliente</th>
                     <th></th>
                   </tr>
@@ -497,6 +604,11 @@ export default function GestionProductos() {
                         <span className={styles["pill-green"]}>{Number(p.margen_porcentaje || 0).toFixed(1)}%</span>
                       </td>
                       <td>{formatoMoneda(p.precio_venta)}</td>
+                      <td>
+                        <span className={Number(p.estado) !== 1 ? styles["pill-gray"] : styles["pill-success"]}>
+                          {Number(p.estado) !== 1 ? "Inactivo" : "Activo"}
+                        </span>
+                      </td>
                       <td>
                         <span className={Number(p.visible_cliente) === 1 ? styles["pill-blue"] : styles["pill-gray"]}>
                           {Number(p.visible_cliente) === 1 ? "Visible" : "Oculto"}
@@ -570,13 +682,18 @@ export default function GestionProductos() {
             </article>
             <article className={styles["summary-card"]}>
               <span>Precio venta</span>
-              <strong>{formatoMoneda(producto.precio_venta || precioVentaCalculado)}</strong>
-              <small>Costo + porcentaje de ganancia</small>
+              <strong>{formatoMoneda(precioVentaCalculado)}</strong>
+              <small>{Number(producto.iva_porcentaje || 0) > 0 ? `Precio final con ${producto.iva_porcentaje}% IVA incluido` : "Costo + porcentaje de ganancia"}</small>
             </article>
             <article className={styles["summary-card"]}>
               <span>Stock</span>
               <strong>{Number(producto.stock || 0)}</strong>
               <small>{esNuevoProducto ? "Se inicializa en 0" : "Editable en modificación"}</small>
+            </article>
+            <article className={styles["summary-card"]}>
+              <span>IVA</span>
+              <strong>{Number(producto.iva_porcentaje || 0)}%</strong>
+              <small>Se aplica en facturas y cotizaciones</small>
             </article>
           </section>
 
@@ -626,34 +743,40 @@ export default function GestionProductos() {
                       <div className={styles["category-select-row"]}>
                         <select name="id_categoria" value={producto.id_categoria || ""} onChange={handleProductoChange} disabled={!modoEdicion}>
                           <option value="">Sin categoría</option>
-                          {categorias.map((cat) => (
+                          {categorias.map(cat => (
                             <option key={cat.id_categoria} value={cat.id_categoria}>{cat.nombre}</option>
                           ))}
                         </select>
-                        {modoEdicion && (
-                          <button type="button" onClick={() => setMostrarModalCategoria(true)} className={styles["btn-category-add"]} title="Crear categoría">+</button>
-                        )}
                       </div>
                     </div>
 
                     <div className={styles["field-full"]}>
                       <label>Nombre del producto</label>
-                      <input type="text" name="nombre" value={producto.nombre || ""} onChange={handleProductoChange} disabled={!modoEdicion} placeholder="Ej: Pan aliñado, cerradura, instalación..." />
+                      <input type="text" name="nombre" value={producto.nombre || ""} onChange={handleProductoChange} disabled={!modoEdicion} placeholder="Ej: Pan aliñado, cerradura, instalación..." maxLength="255" />
                     </div>
 
                     <div>
                       <label>Porcentaje de ganancia</label>
-                      <input type="number" step="0.01" name="margen_porcentaje" value={producto.margen_porcentaje || 0} onChange={handleProductoChange} disabled={!modoEdicion} placeholder="30" />
+                      <input type="number" step="0.01" min="0" name="margen_porcentaje" value={producto.margen_porcentaje || 0} onChange={handleProductoChange} disabled={!modoEdicion} placeholder="30" />
+                    </div>
+
+                    <div>
+                      <label>IVA</label>
+                      <select name="iva_porcentaje" value={producto.iva_porcentaje ?? 0} onChange={handleProductoChange} disabled={!modoEdicion}>
+                        <option value="0">No aplica (0%)</option>
+                        <option value="5">5%</option>
+                        <option value="19">19%</option>
+                      </select>
                     </div>
 
                     <div>
                       <label>Precio venta calculado</label>
-                      <input type="text" value={formatoMoneda(producto.precio_venta || precioVentaCalculado)} disabled />
+                      <input type="text" value={formatoMoneda(precioVentaCalculado)} disabled />
                     </div>
 
                     <div>
                       <label>Unidad</label>
-                      <input type="text" name="unidad_medida" value={producto.unidad_medida || "Unidad"} onChange={handleProductoChange} disabled={!modoEdicion} placeholder="Unidad" />
+                      <input type="text" name="unidad_medida" value={producto.unidad_medida || "Unidad"} onChange={handleProductoChange} disabled={!modoEdicion} placeholder="Unidad" maxLength="50" />
                     </div>
 
                     <div>
@@ -661,16 +784,18 @@ export default function GestionProductos() {
                       <input
                         type="number"
                         name="stock"
+                        min="0"
+                        step="0.001"
                         value={producto.stock || 0}
-                        onChange={handleProductoChange}
-                        disabled={!modoEdicion || producto.tipo_producto === "Servicio" || esNuevoProducto}
-                        title={esNuevoProducto ? "El stock se crea en 0. Podrás modificarlo al editar el producto." : ""}
+                        disabled
+                        title="El stock se modifica exclusivamente via Compras o Fabrication"
                       />
+                      <small className={styles["field-help"]}>Se modifica solo via Compras o Fabricacion</small>
                     </div>
 
                     <div className={styles["field-full"]}>
                       <label>Descripción</label>
-                      <textarea name="descripcion" value={producto.descripcion || ""} onChange={handleProductoChange} disabled={!modoEdicion} placeholder="Describe brevemente este producto..." />
+                      <textarea name="descripcion" value={producto.descripcion || ""} onChange={handleProductoChange} disabled={!modoEdicion} placeholder="Describe brevemente este producto..." maxLength="2000" />
                     </div>
 
                     <div className={styles["field-full"]}>
@@ -726,10 +851,8 @@ export default function GestionProductos() {
                     <label>Insumo del sistema</label>
                     <select name="id_insumo" value={costoForm.id_insumo} onChange={handleCostoChange}>
                       <option value="">Seleccionar insumo</option>
-                      {insumosSistema.map((insumo) => (
-                        <option key={insumo.id_insumo} value={insumo.id_insumo}>
-                          {insumo.nombre} · {insumo.proveedor || "Sin proveedor"} · Stock: {Number(insumo.stock_actual || 0).toFixed(3)} {insumo.unidad_medida}
-                        </option>
+                      {insumosSistema.map(insumo => (
+                        <option key={insumo.id_insumo} value={insumo.id_insumo}>{insumo.nombre} · {insumo.proveedor || "Sin proveedor"} · Stock: {Number(insumo.stock_actual || 0).toFixed(2)} {insumo.unidad_medida}</option>
                       ))}
                     </select>
                   </div>
@@ -737,7 +860,7 @@ export default function GestionProductos() {
 
                 <div className={styles["field-full"]}>
                   <label>Concepto</label>
-                  <input type="text" name="concepto" value={costoForm.concepto} onChange={handleCostoChange} placeholder="Ej: Harina, transporte, mano de obra..." />
+                  <input type="text" name="concepto" value={costoForm.concepto} onChange={handleCostoChange} placeholder="Ej: Harina, transporte, mano de obra..." maxLength="255" />
                 </div>
 
                 <div>
@@ -754,12 +877,12 @@ export default function GestionProductos() {
 
                 <div>
                   <label>Cantidad por unidad</label>
-                  <input type="number" step="0.001" name="cantidad" value={costoForm.cantidad} onChange={handleCostoChange} />
+                  <input type="number" step="0.001" min="0.001" name="cantidad" value={costoForm.cantidad} onChange={handleCostoChange} />
                 </div>
 
                 <div>
                   <label>Costo unitario</label>
-                  <input type="number" step="0.01" name="costo_unitario" value={costoForm.costo_unitario} onChange={handleCostoChange} placeholder="0" />
+                  <input type="number" step="0.01" min="0.01" name="costo_unitario" value={costoForm.costo_unitario} onChange={handleCostoChange} placeholder="0" />
                 </div>
 
                 <div>
@@ -772,7 +895,7 @@ export default function GestionProductos() {
 
                 <div className={styles["field-full"]}>
                   <label>Observación</label>
-                  <input type="text" name="observacion" value={costoForm.observacion} onChange={handleCostoChange} placeholder="Opcional" />
+                  <input type="text" name="observacion" value={costoForm.observacion} onChange={handleCostoChange} placeholder="Opcional" maxLength="500" />
                 </div>
 
                 <button type="submit" className={styles["btn-primary"]}>+ Agregar costo</button>
@@ -895,6 +1018,140 @@ export default function GestionProductos() {
                 <button type="submit" className={styles["btn-primary"]}>Guardar categoría</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {mostrarModalNuevoProducto && (
+        <div className={styles["modal-overlay"]} onClick={() => setMostrarModalNuevoProducto(false)}>
+          <div className={`${styles["modal"]} ${styles["modal-category"]}`} onClick={(e) => e.stopPropagation()}>
+            <div className={styles["category-modal-head"]}>
+              <div className={styles["category-modal-icon"]}>▣</div>
+              <div>
+                <span>Producto</span>
+                <h3>Nuevo producto</h3>
+                <p>Registra los datos básicos. Después podrás agregar costos y personalizar el detalle.</p>
+              </div>
+            </div>
+
+            <form onSubmit={guardarYVerDetalle} className={styles["category-form"]}>
+              <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(2,minmax(0,1fr))" }}>
+                <div>
+                  <label>Tipo de producto</label>
+                  <select name="tipo_producto" value={producto.tipo_producto || "Comprado"} onChange={handleProductoChange}>
+                    <option value="Fabricado">Fabricado</option>
+                    <option value="Comprado">Comprado</option>
+                    <option value="Servicio">Servicio</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Categoría</label>
+                  <select name="id_categoria" value={producto.id_categoria || ""} onChange={handleProductoChange}>
+                    <option value="">Sin categoría</option>
+                    {categorias.map(cat => (
+                      <option key={cat.id_categoria} value={cat.id_categoria}>{cat.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label>Nombre del producto</label>
+                  <input type="text" name="nombre" value={producto.nombre || ""} onChange={handleProductoChange} placeholder="Ej: Pan aliñado, cerradura, instalación..." maxLength="255" />
+                </div>
+
+                <div>
+                  <label>Porcentaje de ganancia</label>
+                  <input type="number" step="0.01" min="0" name="margen_porcentaje" value={producto.margen_porcentaje || 0} onChange={handleProductoChange} placeholder="30" />
+                </div>
+
+                <div>
+                  <label>IVA</label>
+                  <select name="iva_porcentaje" value={producto.iva_porcentaje ?? 0} onChange={handleProductoChange}>
+                    <option value="0">No aplica (0%)</option>
+                    <option value="5">5%</option>
+                    <option value="19">19%</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Unidad</label>
+                  <input type="text" name="unidad_medida" value={producto.unidad_medida || "Unidad"} onChange={handleProductoChange} placeholder="Unidad" maxLength="50" />
+                </div>
+
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label>Descripción</label>
+                  <input type="text" name="descripcion" value={producto.descripcion || ""} onChange={handleProductoChange} placeholder="Breve descripción del producto" maxLength="500" />
+                </div>
+              </div>
+
+              <div className={styles["modal-actions"]}>
+                <button type="button" onClick={() => setMostrarModalNuevoProducto(false)} className={styles["btn-light"]}>Cancelar</button>
+                <button type="submit" className={styles["btn-primary"]}>Guardar y ver detalle</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {mostrarGestionCategorias && (
+        <div className={styles["modal-overlay"]} onClick={() => setMostrarGestionCategorias(false)}>
+          <div className={`${styles["modal"]} ${styles["modal-category"]}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "42rem" }}>
+            <div className={styles["category-modal-head"]}>
+              <div className={styles["category-modal-icon"]}>▦</div>
+              <div>
+                <span>Gestión</span>
+                <h3>Categorías de productos</h3>
+                <p>Administra las categorías. Al desactivar una, todos sus productos se desactivarán también.</p>
+              </div>
+            </div>
+
+            <div className={styles["table-wrap"]}>
+              <table className={styles["table"]}>
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th>Visible cliente</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {todasCategorias.map((cat) => (
+                    <tr key={cat.id_categoria}>
+                      <td><strong>{cat.nombre}</strong></td>
+                      <td>{cat.descripcion || "—"}</td>
+                      <td>
+                        <span className={Number(cat.visible_cliente) === 1 ? styles["pill-blue"] : styles["pill-gray"]}>
+                          {Number(cat.visible_cliente) === 1 ? "Visible" : "Oculto"}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={Number(cat.estado) === 1 ? styles["pill-success"] : styles["pill-gray"]}>
+                          {Number(cat.estado) === 1 ? "Activa" : "Inactiva"}
+                        </span>
+                      </td>
+                      <td>
+                        {Number(cat.estado) === 1 ? (
+                          <button type="button" onClick={() => desactivarCategoria(cat.id_categoria)} className={styles["btn-delete-small"]}>Desactivar</button>
+                        ) : (
+                          <button type="button" onClick={() => activarCategoria(cat.id_categoria)} className={styles["btn-table"]}>Activar</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {todasCategorias.length === 0 && (
+                    <tr><td colSpan="5" className={styles["empty"]}>No hay categorías registradas.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className={styles["modal-actions"]}>
+              <button type="button" onClick={() => { setMostrarGestionCategorias(false); setMostrarModalCategoria(true); }} className={styles["btn-primary"]}>+ Nueva categoría</button>
+              <button type="button" onClick={() => setMostrarGestionCategorias(false)} className={styles["btn-light"]}>Cerrar</button>
+            </div>
           </div>
         </div>
       )}

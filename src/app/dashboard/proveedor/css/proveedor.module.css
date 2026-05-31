@@ -19,22 +19,31 @@
 
 .alerta-exito,
 .alerta-error {
-  padding: 0.9rem 1rem;
-  margin-bottom: 1rem;
-  border-radius: 0.9rem;
-  font-size: 0.92rem;
-  font-weight: 800;
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 9999;
+  max-width: 400px;
+  padding: 0.85rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  animation: fadeIn 0.25s ease;
 }
 
 .alerta-exito {
-  color: #166534;
-  background: #dcfce7;
-  border: 1px solid #bbf7d0;
+  color: #065f46;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
 }
 
 .alerta-error {
   color: #991b1b;
-  background: #fee2e2;
+  background: #fef2f2;
   border: 1px solid #fecaca;
 }
 
@@ -583,25 +592,73 @@
   padding: 1rem;
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(5px);
+  animation: fadeIn 0.15s ease;
 }
 
 .modal {
   width: 100%;
   max-width: 26rem;
-  padding: 1.5rem;
-  border-radius: 1rem;
+  border-radius: 1.2rem;
   background: #ffffff;
   box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+  animation: fadeIn 0.2s ease;
+  overflow: hidden;
 }
 
-.modal h3 {
+.modal-large {
+  max-width: 38rem;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.35rem 1.5rem;
+  border-bottom: 1px solid #eef2f7;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+}
+
+.modal-header h3 {
   margin: 0;
   color: #111827;
   font-size: 1.2rem;
   font-weight: 950;
 }
 
-.modal p {
+.modal-header p {
+  margin: 0.35rem 0 0;
+  color: #475569;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.btn-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  transition: 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.modal-overlay .modal h3 {
+  margin: 0;
+}
+
+.modal-overlay .modal p {
   margin: 0.75rem 0 0;
   color: #475569;
   font-size: 0.92rem;
@@ -612,7 +669,102 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.7rem;
-  margin-top: 1.5rem;
+  padding: 1rem 1.5rem 1.35rem;
+}
+
+.modal-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.modal-form-grid label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #1e293b;
+  font-size: 0.8rem;
+  font-weight: 950;
+}
+
+.modal-form-grid input,
+.modal-form-grid textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #dbe3ec;
+  border-radius: 0.85rem;
+  outline: none;
+  background: #ffffff;
+  color: #111827;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.9rem;
+  transition: 0.18s ease;
+}
+
+.modal-form-grid textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.modal-form-grid input:focus,
+.modal-form-grid textarea:focus {
+  border-color: #2b547e;
+  box-shadow: 0 0 0 4px rgba(43, 84, 126, 0.13);
+}
+
+.modal-form-grid .field-full {
+  grid-column: 1 / -1;
+}
+
+/* Detail info read-only */
+.detail-info {
+  padding: 1.25rem 1.5rem;
+}
+
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.detail-info-grid label {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-info-grid span {
+  display: block;
+  color: #111827;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.detail-info-full {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.detail-info-full label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-info-full p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .modal-sm { max-width: 22rem; }
@@ -681,4 +833,6 @@
   .table th {
     padding: 0.85rem 1rem;
   }
+
+  .filter-control { width:100%; min-width:0; box-sizing:border-box; border:1px solid #dbe3ec; border-radius:.9rem; outline:none; background:#fff; color:#111827; padding:.72rem .85rem; font-size:.86rem; font-weight:800; }
 }

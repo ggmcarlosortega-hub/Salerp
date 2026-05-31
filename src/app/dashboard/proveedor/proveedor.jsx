@@ -2,8 +2,9 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import styles from "./css/proveedor.module.css";
+import { useNotification } from "../../../context/NotificationContext";
 
-const API_PROVEEDOR = "http://localhost:3001/api/proveedor";
+import { API_PROVEEDOR, API_PRODUCTO, getHeaders } from "@/utils/api";
 
 const proveedorInicial = {
   id_proveedor: "",
@@ -23,6 +24,8 @@ const insumoInicial = {
   costo_unitario: "",
   stock_actual: 0,
   stock_minimo: 0,
+  id_categoria_insumo: "",
+  id_tipo_producto: "",
 };
 
 const entradaInicial = {
@@ -42,19 +45,45 @@ export default function GestionProveedores() {
 
   const [insumoForm, setInsumoForm] = useState(insumoInicial);
   const [entradaForm, setEntradaForm] = useState(entradaInicial);
+<<<<<<< HEAD
   const [insumoEditando, setInsumoEditando] = useState(null);
+=======
+  const [categoriasInsumo, setCategoriasInsumo] = useState([]);
+  const [categoriasProducto, setCategoriasProducto] = useState([]);
+>>>>>>> jjmp
 
   const [modoEdicion, setModoEdicion] = useState(false);
-  const [busqueda, setBusqueda] = useState("");
+  const [busqueda, setBusqueda] = useState(""); // Filtro para lista de proveedores
+  const [filtroEst, setFiltroEst] = useState("1"); // Filtro de estado para proveedores
+  const [busquedaInsumo, setBusquedaInsumo] = useState(""); // Filtro para tabla de inventario de insumos
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
+
+  const { notify } = useNotification();
+
+  useEffect(() => {
+    if (mensaje) {
+      notify("success", mensaje);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMensaje("");
+    }
+    if (error) {
+      notify("error", error);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setError("");
+    }
+  }, [mensaje, error, notify]);
+
   const [cargando, setCargando] = useState(false);
+  const [mostrarModalProveedor, setMostrarModalProveedor] = useState(false);
   const [mostrarModalConfirmacion, setMostrarModalConfirmacion] = useState(false);
   const [proveedorDirty, setProveedorDirty] = useState(false);
   const [mostrarConfirmarSalir, setMostrarConfirmarSalir] = useState(false);
 
   useEffect(() => {
     cargarProveedores();
+    cargarCategoriasInsumo();
+    cargarCategoriasProducto();
   }, []);
 
   useEffect(() => {
@@ -78,19 +107,40 @@ export default function GestionProveedores() {
     }).format(Number(valor || 0));
   };
 
+  // ============================================================
+  // FILTROS: Lista de proveedores
+  // Filtra por nombre, nit, correo o telefono + estado activo/inactivo
+  // ============================================================
   const proveedoresFiltrados = useMemo(() => {
     const texto = busqueda.toLowerCase();
 
     return lista.filter((p) => {
-      return (
+      const coincideEst = filtroEst !== "" ? Number(p.estado) === Number(filtroEst) : true;
+      return coincideEst && (
         p.nombre?.toLowerCase().includes(texto) ||
         p.nit?.toLowerCase().includes(texto) ||
         p.correo?.toLowerCase().includes(texto) ||
         p.telefono?.toLowerCase().includes(texto)
       );
     });
-  }, [lista, busqueda]);
+  }, [lista, busqueda, filtroEst]);
 
+  // ============================================================
+  // FILTRO: Inventario de insumos del proveedor seleccionado
+  // Filtra por ID o nombre del insumo
+  // ============================================================
+  const insumosFiltrados = useMemo(() => {
+    if (!busquedaInsumo.trim()) return insumos;
+    const texto = busquedaInsumo.toLowerCase();
+    return insumos.filter((i) =>
+      String(i.id_insumo).toLowerCase().includes(texto) ||
+      i.nombre?.toLowerCase().includes(texto)
+    );
+  }, [insumos, busquedaInsumo]);
+
+  // ============================================================
+  // ESTADISTICAS: Totales del inventario de insumos
+  // ============================================================
   const totalInsumos = insumos.length;
 
   const valorInventario = insumos.reduce((total, item) => {
@@ -101,12 +151,17 @@ export default function GestionProveedores() {
     return Number(item.stock_actual || 0) <= Number(item.stock_minimo || 0);
   }).length;
 
+  // ============================================================
+  // FUNCIONES DE CARGA DE DATOS DESDE LA API
+  // ============================================================
+
+  // Carga la lista completa de proveedores
   const cargarProveedores = async () => {
     try {
       setCargando(true);
       setError("");
 
-      const response = await fetch(API_PROVEEDOR);
+      const response = await fetch(API_PROVEEDOR, { headers: getHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -121,12 +176,37 @@ export default function GestionProveedores() {
     }
   };
 
+  // Carga las categorias de insumos (para el formulario de registro de insumos)
+  const cargarCategoriasInsumo = async () => {
+    try {
+      const res = await fetch(`${API_PROVEEDOR}/insumos/categorias`, { headers: getHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al cargar categorias.");
+      setCategoriasInsumo(data);
+    } catch (err) {
+      console.error(err.message);
+    }
+  };
+
+  // Carga las categorias de productos (para el formulario de registro de insumos)
+  const cargarCategoriasProducto = async () => {
+    try {
+      const res = await fetch(`${API_PRODUCTO}/categorias`, { headers: getHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al cargar categorias producto.");
+      setCategoriasProducto(data);
+    } catch (err) {
+      console.error(err.message);
+    }
+  };
+
+  // Carga el detalle de un proveedor + sus insumos y movimientos (llamado al abrir detalle)
   const cargarDetalleProveedor = async (idProveedor) => {
     try {
       setCargando(true);
       setError("");
 
-      const response = await fetch(`${API_PROVEEDOR}/${idProveedor}`);
+      const response = await fetch(`${API_PROVEEDOR}/${idProveedor}`, { headers: getHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -143,14 +223,20 @@ export default function GestionProveedores() {
     }
   };
 
+  // ============================================================
+  // NAVEGACION: Abre el detalle de un proveedor seleccionado
+  // Resetea filtros de inventario al entrar
+  // ============================================================
   const abrirDetalle = async (p) => {
     setMensaje("");
     setError("");
     setModoEdicion(false);
+    setBusquedaInsumo(""); // Limpia filtro de insumos al abrir detalle
     setVistaActual("detalle");
     await cargarDetalleProveedor(p.id_proveedor);
   };
 
+  // Abre el modal para registrar un nuevo proveedor
   const nuevoProveedor = () => {
     setProveedor(proveedorInicial);
     setInsumos([]);
@@ -160,10 +246,24 @@ export default function GestionProveedores() {
     setModoEdicion(true);
     setMensaje("");
     setError("");
+<<<<<<< HEAD
     setProveedorDirty(true);
     setVistaActual("detalle");
+=======
+    setMostrarModalProveedor(true);
+>>>>>>> jjmp
   };
 
+  // Abre el modal en modo edicion para modificar el proveedor actual
+  const abrirEdicionProveedor = async () => {
+    setModoEdicion(true);
+    setMostrarModalProveedor(true);
+  };
+
+  // ============================================================
+  // NAVEGACION: Vuelve a la lista de proveedores desde el detalle
+  // Resetea todos los formularios y filtros
+  // ============================================================
   const volverLista = () => {
     setProveedor(proveedorInicial);
     setInsumos([]);
@@ -171,11 +271,16 @@ export default function GestionProveedores() {
     setInsumoForm(insumoInicial);
     setEntradaForm(entradaInicial);
     setModoEdicion(false);
+<<<<<<< HEAD
     setProveedorDirty(false);
+=======
+    setBusquedaInsumo(""); // Limpia filtro de insumos
+>>>>>>> jjmp
     setVistaActual("lista");
     cargarProveedores();
   };
 
+<<<<<<< HEAD
   const manejarSalirProveedor = (force = false) => {
     if (proveedorDirty && !force) {
       setMostrarConfirmarSalir(true);
@@ -184,6 +289,13 @@ export default function GestionProveedores() {
     volverLista();
   };
 
+=======
+  // ============================================================
+  // HANDLERS: Cambios en formularios
+  // ============================================================
+
+  // Handler generico para el formulario del proveedor (modal)
+>>>>>>> jjmp
   const handleProveedorChange = (e) => {
     const { name, value } = e.target;
     setProveedorDirty(true);
@@ -193,6 +305,7 @@ export default function GestionProveedores() {
     }));
   };
 
+  // Handler para el formulario de registro de nuevo insumo
   const handleInsumoChange = (e) => {
     const { name, value } = e.target;
 
@@ -202,6 +315,7 @@ export default function GestionProveedores() {
     }));
   };
 
+  // Handler para el formulario de entrada de inventario (compra de insumos)
   const handleEntradaChange = (e) => {
     const { name, value } = e.target;
 
@@ -229,7 +343,7 @@ export default function GestionProveedores() {
         esEdicion ? `${API_PROVEEDOR}/${proveedor.id_proveedor}` : API_PROVEEDOR,
         {
           method: esEdicion ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getHeaders(),
           body: JSON.stringify(proveedor),
         }
       );
@@ -246,6 +360,7 @@ export default function GestionProveedores() {
           : "Proveedor registrado correctamente."
       );
 
+      setMostrarModalProveedor(false);
       setModoEdicion(false);
       setProveedorDirty(false);
 
@@ -261,6 +376,7 @@ export default function GestionProveedores() {
     }
   };
 
+  // Registra un nuevo insumo asociado al proveedor actual
   const agregarInsumo = async (e) => {
     e.preventDefault();
 
@@ -283,6 +399,7 @@ export default function GestionProveedores() {
     }
 
     try {
+<<<<<<< HEAD
       const esEdicion = Boolean(insumoEditando);
       const url = esEdicion
         ? `${API_PROVEEDOR}/insumos/${insumoEditando}`
@@ -291,6 +408,11 @@ export default function GestionProveedores() {
       const response = await fetch(url, {
         method: esEdicion ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
+=======
+      const response = await fetch(`${API_PROVEEDOR}/${proveedor.id_proveedor}/insumos`, {
+        method: "POST",
+        headers: getHeaders(),
+>>>>>>> jjmp
         body: JSON.stringify(insumoForm),
       });
 
@@ -311,6 +433,7 @@ export default function GestionProveedores() {
     }
   };
 
+<<<<<<< HEAD
   const iniciarEdicionInsumo = (item) => {
     setInsumoEditando(item.id_insumo);
     setError('');
@@ -330,6 +453,9 @@ export default function GestionProveedores() {
     setInsumoForm(insumoInicial);
   };
 
+=======
+  // Registra una entrada de inventario (compra/aumento de stock de un insumo)
+>>>>>>> jjmp
   const registrarEntrada = async (e) => {
     e.preventDefault();
 
@@ -356,7 +482,7 @@ export default function GestionProveedores() {
         `${API_PROVEEDOR}/insumos/${entradaForm.id_insumo}/entrada`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getHeaders(),
           body: JSON.stringify(entradaForm),
         }
       );
@@ -377,6 +503,11 @@ export default function GestionProveedores() {
     }
   };
 
+  // ============================================================
+  // ACCIONES: Insumos
+  // ============================================================
+
+  // Desactiva (elimina logicamente) un insumo del proveedor
   const eliminarInsumo = async (idInsumo) => {
     try {
       setMensaje("");
@@ -384,6 +515,7 @@ export default function GestionProveedores() {
 
       const response = await fetch(`${API_PROVEEDOR}/insumos/${idInsumo}`, {
         method: "DELETE",
+        headers: getHeaders(),
       });
 
       const data = await response.json();
@@ -401,22 +533,16 @@ export default function GestionProveedores() {
     }
   };
 
+  // Confirma la desactivacion del proveedor actual (modal de confirmacion)
   const confirmarDesactivacion = async () => {
     try {
       setMensaje("");
       setError("");
-
-      const response = await fetch(`${API_PROVEEDOR}/${proveedor.id_proveedor}`, {
-        method: "DELETE",
-      });
-
+      const response = await fetch(`${API_PROVEEDOR}/${proveedor.id_proveedor}`, { method: "DELETE", headers: getHeaders() });
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error al desactivar proveedor.");
-      }
-
+      if (!response.ok) throw new Error(data.error || "Error al desactivar proveedor.");
       setMostrarModalConfirmacion(false);
+      setMensaje(data?.message || "Proveedor desactivado correctamente.");
       volverLista();
     } catch (err) {
       setError(err.message);
@@ -424,15 +550,26 @@ export default function GestionProveedores() {
     }
   };
 
+  // Reactiva un proveedor previamente desactivado
+  const activarProveedor = async () => {
+    try {
+      setMensaje("");
+      setError("");
+      const response = await fetch(`${API_PROVEEDOR}/activar/${proveedor.id_proveedor}`, { method: "PUT", headers: getHeaders() });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Error al activar proveedor.");
+      setMensaje("Proveedor activado correctamente.");
+      await cargarDetalleProveedor(proveedor.id_proveedor);
+      cargarProveedores();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className={styles["page"]}>
-      {mensaje && <div className={styles["alerta-exito"]}>{mensaje}</div>}
-      {error && <div className={styles["alerta-error"]}>{error}</div>}
-
-      {vistaActual === "lista" && (
-        <>
-          <section className={styles["hero"]}>
-            <div>
+      <section className={styles["hero"]}>
+        <div>
               <span className={styles["hero-badge"]}>Inventario por proveedores</span>
               <h1>Gestión de proveedores</h1>
               <p>
@@ -446,13 +583,23 @@ export default function GestionProveedores() {
             </button>
           </section>
 
+      {/* ============================================================ */}
+      {/* VISTA: Lista de proveedores */}
+      {/* Muestra tabla con todos los proveedores y filtros de busqueda */}
+      {/* ============================================================ */}
+      {vistaActual === "lista" && (
+        <>
           <section className={styles["panel"]}>
             <div className={styles["panel-header"]}>
               <div>
                 <h2>Proveedores registrados</h2>
                 <p>Consulta proveedores, insumos asociados y valor actual del inventario.</p>
               </div>
-
+              <select value={filtroEst} onChange={(e) => setFiltroEst(e.target.value)} className={styles["search-box"]}>
+                <option value="">Todos</option>
+                <option value="1">Activos</option>
+                <option value="0">Desactivados</option>
+              </select>
               <div className={styles["search-box"]}>
                 <span>⌕</span>
                 <input
@@ -538,6 +685,10 @@ export default function GestionProveedores() {
         </>
       )}
 
+      {/* ============================================================ */}
+      {/* VISTA: Detalle del proveedor seleccionado */}
+      {/* Muestra info del proveedor + formularios + inventario + movimientos */}
+      {/* ============================================================ */}
       {vistaActual === "detalle" && (
         <>
           <button onClick={manejarSalirProveedor} className={styles["back-btn"]}>
@@ -560,23 +711,27 @@ export default function GestionProveedores() {
             </div>
 
             <div className={styles["detail-actions"]}>
-              {proveedor.id_proveedor && !modoEdicion && (
+              {proveedor.id_proveedor && (
                 <>
                   <button
                     type="button"
-                    onClick={() => setModoEdicion(true)}
+                    onClick={abrirEdicionProveedor}
                     className={styles["btn-secondary"]}
                   >
                     Editar proveedor
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setMostrarModalConfirmacion(true)}
-                    className={styles["btn-danger"]}
-                  >
-                    Desactivar
-                  </button>
+                  {Number(proveedor.estado) === 0 ? (
+                    <button type="button" onClick={activarProveedor} className={styles["btn-table"]}>Activar</button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setMostrarModalConfirmacion(true)}
+                      className={styles["btn-danger"]}
+                    >
+                      Desactivar
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -608,8 +763,9 @@ export default function GestionProveedores() {
             </article>
           </section>
 
+          {/* Seccion: Informacion del proveedor (datos generales) */}
           <section className={styles["content-grid"]}>
-            <form onSubmit={guardarProveedor} className={styles["card"]}>
+            <div className={styles["card"]}>
               <div className={styles["card-header"]}>
                 <div>
                   <h2>Información del proveedor</h2>
@@ -617,114 +773,47 @@ export default function GestionProveedores() {
                 </div>
               </div>
 
-              <div className={styles["form-grid"]}>
-                <div className={styles["field-large"]}>
-                  <label>Nombre del proveedor</label>
-                  <input
-                    type="text"
-                    name="nombre"
-                    value={proveedor.nombre || ""}
-                    onChange={handleProveedorChange}
-                    disabled={!modoEdicion}
-                    placeholder="Ej: Dyna, HarinaPan, Proveedor Central..."
-                  />
+              <div className={styles["detail-info"]}>
+                <div className={styles["detail-info-grid"]}>
+                  <div>
+                    <label>Nombre</label>
+                    <span>{proveedor.nombre || "—"}</span>
+                  </div>
+                  <div>
+                    <label>NIT / Documento</label>
+                    <span>{proveedor.nit || "—"}</span>
+                  </div>
+                  <div>
+                    <label>Teléfono</label>
+                    <span>{proveedor.telefono || "—"}</span>
+                  </div>
+                  <div>
+                    <label>Correo</label>
+                    <span>{proveedor.correo || "—"}</span>
+                  </div>
+                  <div>
+                    <label>Contacto</label>
+                    <span>{proveedor.contacto || "—"}</span>
+                  </div>
+                  <div>
+                    <label>Dirección</label>
+                    <span>{proveedor.direccion || "—"}</span>
+                  </div>
                 </div>
-
-                <div>
-                  <label>NIT / Documento</label>
-                  <input
-                    type="text"
-                    name="nit"
-                    value={proveedor.nit || ""}
-                    onChange={handleProveedorChange}
-                    disabled={!modoEdicion}
-                    placeholder="NIT"
-                  />
-                </div>
-
-                <div>
-                  <label>Teléfono</label>
-                  <input
-                    type="text"
-                    name="telefono"
-                    value={proveedor.telefono || ""}
-                    onChange={handleProveedorChange}
-                    disabled={!modoEdicion}
-                    placeholder="Teléfono"
-                  />
-                </div>
-
-                <div>
-                  <label>Correo</label>
-                  <input
-                    type="email"
-                    name="correo"
-                    value={proveedor.correo || ""}
-                    onChange={handleProveedorChange}
-                    disabled={!modoEdicion}
-                    placeholder="correo@empresa.com"
-                  />
-                </div>
-
-                <div>
-                  <label>Contacto</label>
-                  <input
-                    type="text"
-                    name="contacto"
-                    value={proveedor.contacto || ""}
-                    onChange={handleProveedorChange}
-                    disabled={!modoEdicion}
-                    placeholder="Persona de contacto"
-                  />
-                </div>
-
-                <div className={styles["field-full"]}>
-                  <label>Dirección</label>
-                  <input
-                    type="text"
-                    name="direccion"
-                    value={proveedor.direccion || ""}
-                    onChange={handleProveedorChange}
-                    disabled={!modoEdicion}
-                    placeholder="Dirección del proveedor"
-                  />
-                </div>
-
-                <div className={styles["field-full"]}>
-                  <label>Observación</label>
-                  <textarea
-                    name="observacion"
-                    value={proveedor.observacion || ""}
-                    onChange={handleProveedorChange}
-                    disabled={!modoEdicion}
-                    placeholder="Información adicional del proveedor..."
-                  />
-                </div>
+                {proveedor.observacion && (
+                  <div className={styles["detail-info-full"]}>
+                    <label>Observación</label>
+                    <p>{proveedor.observacion}</p>
+                  </div>
+                )}
               </div>
+            </div>
 
-              {modoEdicion && (
-                <div className={styles["form-actions"]}>
-                  <button type="submit" className={styles["btn-primary"]}>
-                    Guardar proveedor
-                  </button>
-
-                  {proveedor.id_proveedor && (
-                    <button
-                      type="button"
-                      onClick={() => setModoEdicion(false)}
-                      className={styles["btn-light"]}
-                    >
-                      Cancelar
-                    </button>
-                  )}
-                </div>
-              )}
-            </form>
-
-            <section className={styles["card"]}>
-              <div className={styles["card-header"]}>
-                <div>
-                  <h2>Registrar insumo</h2>
+          {/* Seccion: Registrar insumo (formulario para crear nuevo insumo del proveedor) */}
+          <section className={styles["card"]}>
+            <div className={styles["card-header"]}>
+              <div>
+                <h2>Registrar insumo</h2>
                   <p>Crea materias primas o productos comprados a este proveedor.</p>
                 </div>
               </div>
@@ -738,6 +827,7 @@ export default function GestionProveedores() {
                     value={insumoForm.nombre}
                     onChange={handleInsumoChange}
                     placeholder="Ej: Pegante PU, harina, tornillos..."
+                    maxLength="255"
                   />
                 </div>
 
@@ -762,6 +852,7 @@ export default function GestionProveedores() {
                   <input
                     type="number"
                     step="0.01"
+                    min="0.01"
                     name="costo_unitario"
                     value={insumoForm.costo_unitario}
                     onChange={handleInsumoChange}
@@ -773,19 +864,19 @@ export default function GestionProveedores() {
                   <label>Stock inicial</label>
                   <input
                     type="number"
-                    step="0.001"
+                    step="0.01"
+                    min="0"
                     name="stock_actual"
                     value={insumoForm.stock_actual}
                     onChange={handleInsumoChange}
-                    placeholder="0"
                   />
                 </div>
-
                 <div>
-                  <label>Stock mínimo</label>
+                  <label>Stock Mínimo</label>
                   <input
                     type="number"
-                    step="0.001"
+                    step="0.01"
+                    min="0"
                     name="stock_minimo"
                     value={insumoForm.stock_minimo}
                     onChange={handleInsumoChange}
@@ -793,15 +884,36 @@ export default function GestionProveedores() {
                   />
                 </div>
 
-                <div className={styles["field-full"]}>
-                  <label>Descripción</label>
+<div className={styles["field-full"]}>
+                  <label>Descripcion</label>
                   <input
                     type="text"
                     name="descripcion"
                     value={insumoForm.descripcion}
                     onChange={handleInsumoChange}
-                    placeholder="Descripción opcional"
+                    placeholder="Descripcion opcional"
+                    maxLength="500"
                   />
+                </div>
+
+                <div>
+                  <label>Categoria de Insumo</label>
+                  <select name="id_categoria_insumo" value={insumoForm.id_categoria_insumo} onChange={handleInsumoChange}>
+                    <option value="">Sin categoria</option>
+                    {categoriasInsumo.map(c => (
+                      <option key={c.id_categoria_insumo} value={c.id_categoria_insumo}>{c.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label>Usar en producto tipo</label>
+                  <select name="id_tipo_producto" value={insumoForm.id_tipo_producto} onChange={handleInsumoChange}>
+                    <option value="">Todos los tipos</option>
+                    {categoriasProducto.map(c => (
+                      <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <button type="submit" className={styles["btn-primary"]}>
@@ -816,6 +928,7 @@ export default function GestionProveedores() {
             </section>
           </section>
 
+          {/* Seccion: Inventario del proveedor (tabla de insumos + buscador) */}
           <section className={styles["content-grid"]}>
             <section className={styles["card"]}>
               <div className={styles["card-header"]}>
@@ -823,6 +936,17 @@ export default function GestionProveedores() {
                   <h2>Inventario del proveedor</h2>
                   <p>Insumos disponibles para fabricar productos o registrar costos.</p>
                 </div>
+              </div>
+
+              {/* Barra de busqueda para filtrar insumos por ID o nombre */}
+              <div style={{ padding: "0 1.1rem 0.75rem" }}>
+                <input
+                  type="text"
+                  placeholder="Buscar por ID o nombre del insumo..."
+                  value={busquedaInsumo}
+                  onChange={(e) => setBusquedaInsumo(e.target.value)}
+                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: "10px", fontSize: "0.875rem" }}
+                />
               </div>
 
               <div className={styles["table-wrap"]}>
@@ -840,7 +964,7 @@ export default function GestionProveedores() {
                   </thead>
 
                   <tbody>
-                    {insumos.map((item) => {
+                    {insumosFiltrados.map((item) => {
                       const bajoStock =
                         Number(item.stock_actual || 0) <= Number(item.stock_minimo || 0);
 
@@ -851,7 +975,7 @@ export default function GestionProveedores() {
                             {item.descripcion && <span>{item.descripcion}</span>}
                           </td>
                           <td>{item.unidad_medida}</td>
-                          <td>{Number(item.stock_actual || 0).toFixed(3)}</td>
+                          <td>{Number(item.stock_actual || 0).toFixed(2)}</td>
                           <td>{formatoMoneda(item.costo_unitario)}</td>
                           <td>
                             {formatoMoneda(
@@ -889,10 +1013,12 @@ export default function GestionProveedores() {
                       );
                     })}
 
-                    {insumos.length === 0 && (
+                    {insumosFiltrados.length === 0 && (
                       <tr>
                         <td colSpan="7" className={styles["empty"]}>
-                          Este proveedor todavía no tiene insumos registrados.
+                          {insumos.length === 0
+                            ? "Este proveedor todavía no tiene insumos registrados."
+                            : "Ningun insumo coincide con los filtros aplicados."}
                         </td>
                       </tr>
                     )}
@@ -901,6 +1027,7 @@ export default function GestionProveedores() {
               </div>
             </section>
 
+            {/* Seccion: Entrada de inventario (formulario para comprar insumos) */}
             <section className={styles["card"]}>
               <div className={styles["card-header"]}>
                 <div>
@@ -912,16 +1039,10 @@ export default function GestionProveedores() {
               <form onSubmit={registrarEntrada} className={styles["side-form"]}>
                 <div className={styles["field-full"]}>
                   <label>Insumo</label>
-                  <select
-                    name="id_insumo"
-                    value={entradaForm.id_insumo}
-                    onChange={handleEntradaChange}
-                  >
+                  <select name="id_insumo" value={entradaForm.id_insumo} onChange={handleEntradaChange}>
                     <option value="">Seleccionar insumo</option>
-                    {insumos.map((item) => (
-                      <option key={item.id_insumo} value={item.id_insumo}>
-                        {item.nombre} - Stock: {Number(item.stock_actual || 0).toFixed(3)}
-                      </option>
+                    {insumos.map(item => (
+                      <option key={item.id_insumo} value={item.id_insumo}>{item.nombre} - Stock: {Number(item.stock_actual || 0).toFixed(2)}</option>
                     ))}
                   </select>
                 </div>
@@ -930,7 +1051,8 @@ export default function GestionProveedores() {
                   <label>Cantidad</label>
                   <input
                     type="number"
-                    step="0.001"
+                    step="0.01"
+                    min="0.01"
                     name="cantidad"
                     value={entradaForm.cantidad}
                     onChange={handleEntradaChange}
@@ -943,6 +1065,7 @@ export default function GestionProveedores() {
                   <input
                     type="number"
                     step="0.01"
+                    min="0.01"
                     name="costo_unitario"
                     value={entradaForm.costo_unitario}
                     onChange={handleEntradaChange}
@@ -957,7 +1080,8 @@ export default function GestionProveedores() {
                     name="observacion"
                     value={entradaForm.observacion}
                     onChange={handleEntradaChange}
-                    placeholder="Ej: Compra de inventario"
+                    placeholder="Motivo de la entrada"
+                    maxLength="500"
                   />
                 </div>
 
@@ -968,6 +1092,7 @@ export default function GestionProveedores() {
             </section>
           </section>
 
+          {/* Seccion: Historial de movimientos (tabla de entradas/salidas de inventario) */}
           <section className={styles["card"]}>
             <div className={styles["card-header"]}>
               <div>
@@ -1030,6 +1155,66 @@ export default function GestionProveedores() {
         </>
       )}
 
+      {/* ============================================================ */}
+      {/* MODAL: Registrar / Editar proveedor */}
+      {/* ============================================================ */}
+      {mostrarModalProveedor && (
+        <div className={styles["modal-overlay"]} onClick={() => setMostrarModalProveedor(false)}>
+          <div className={`${styles.modal} ${styles["modal-large"]}`} onClick={(e) => e.stopPropagation()}>
+            <div className={styles["modal-header"]}>
+              <div>
+                <h3>{modoEdicion && proveedor.id_proveedor ? "Editar proveedor" : "Nuevo proveedor"}</h3>
+                <p>Registra los datos principales del proveedor.</p>
+              </div>
+              <button type="button" className={styles["btn-close"]} onClick={() => setMostrarModalProveedor(false)}>×</button>
+            </div>
+
+            <form onSubmit={guardarProveedor}>
+              <div className={styles["modal-form-grid"]}>
+                <div className={styles["field-full"]}>
+                  <label>Nombre del proveedor</label>
+                  <input type="text" name="nombre" value={proveedor.nombre || ""} onChange={handleProveedorChange} placeholder="Ej: Dyna, HarinaPan, Proveedor Central..." maxLength="255" />
+                </div>
+                <div>
+                  <label>NIT / Documento</label>
+                  <input type="text" name="nit" value={proveedor.nit || ""} onChange={handleProveedorChange} placeholder="NIT" maxLength="50" />
+                </div>
+                <div>
+                  <label>Teléfono</label>
+                  <input type="tel" name="telefono" value={proveedor.telefono || ""} onChange={handleProveedorChange} placeholder="Teléfono" pattern="[\d\s+\-()]{7,20}" title="Ingresa un número de teléfono válido (7-20 dígitos)" maxLength="20" />
+                </div>
+                <div>
+                  <label>Correo</label>
+                  <input type="email" name="correo" value={proveedor.correo || ""} onChange={handleProveedorChange} placeholder="correo@empresa.com" maxLength="255" />
+                </div>
+                <div>
+                  <label>Contacto</label>
+                  <input type="text" name="contacto" value={proveedor.contacto || ""} onChange={handleProveedorChange} placeholder="Persona de contacto" maxLength="255" />
+                </div>
+                <div className={styles["field-full"]}>
+                  <label>Dirección</label>
+                  <input type="text" name="direccion" value={proveedor.direccion || ""} onChange={handleProveedorChange} placeholder="Dirección del proveedor" maxLength="255" />
+                </div>
+                <div className={styles["field-full"]}>
+                  <label>Observación</label>
+                  <textarea name="observacion" value={proveedor.observacion || ""} onChange={handleProveedorChange} placeholder="Información adicional del proveedor..." maxLength="2000" />
+                </div>
+              </div>
+
+              <div className={styles["modal-actions"]}>
+                <button type="button" className={styles["btn-light"]} onClick={() => setMostrarModalProveedor(false)}>Cancelar</button>
+                <button type="submit" className={styles["btn-primary"]}>
+                  {modoEdicion && proveedor.id_proveedor ? "Actualizar proveedor" : "Registrar proveedor"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* MODAL: Confirmar desactivacion de proveedor */}
+      {/* ============================================================ */}
       {mostrarModalConfirmacion && (
         <div className={styles["modal-overlay"]}>
           <div className={styles["modal"]}>

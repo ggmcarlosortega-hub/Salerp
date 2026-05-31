@@ -2,10 +2,11 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import styles from "./css/cliente.module.css";
+import { useNotification } from "../../../context/NotificationContext";
+
+import { API_CLIENTE, API_DOCUMENTO, getHeaders, getFileHeaders } from "@/utils/api";
 
 const API_BASE = "http://localhost:3001";
-const API_CLIENTE = `${API_BASE}/api/cliente`;
-const API_DOCUMENTO = `${API_BASE}/api/documento`;
 
 const clienteInicial = {
   id_cliente: "",
@@ -56,7 +57,6 @@ const contratoInicial = {
 
 const abonoInicial = {
   id_factura: "",
-  id_contrato: "",
   monto: "",
   metodo_pago: "Efectivo",
   referencia: "",
@@ -78,6 +78,7 @@ export default function GestionClientes() {
   const [productos, setProductos] = useState([]);
 
   const [tipoDocumentos, setTipoDocumentos] = useState("cotizaciones");
+  const [filtroEstado, setFiltroEstado] = useState("activos");
   const [busqueda, setBusqueda] = useState("");
   const [busquedaDoc, setBusquedaDoc] = useState("");
   const [menuDocumentoAbierto, setMenuDocumentoAbierto] = useState(null);
@@ -92,6 +93,7 @@ export default function GestionClientes() {
   const [modalDocumento, setModalDocumento] = useState(null); // cotizacion | factura | contrato | abono
   const [clienteDirty, setClienteDirty] = useState(false);
   const [tipoConfirmarSalir, setTipoConfirmarSalir] = useState('documento'); // 'documento' | 'cliente'
+<<<<<<< HEAD
 
   const [mostrarModalConvertir, setMostrarModalConvertir] = useState(false);
   const [cotizacionAConvertir, setCotizacionAConvertir] = useState(null);
@@ -101,6 +103,8 @@ export default function GestionClientes() {
 
   const [editandoEstadoDoc, setEditandoEstadoDoc] = useState(null); // { id, tipo, estado }
   const [guardandoEstado, setGuardandoEstado] = useState(false);
+=======
+>>>>>>> jjmp
 
   const [documentoForm, setDocumentoForm] = useState(documentoInicial);
   const [contratoForm, setContratoForm] = useState(contratoInicial);
@@ -109,6 +113,23 @@ export default function GestionClientes() {
   const [documentoEnEdicion, setDocumentoEnEdicion] = useState(null);
   const [formDirty, setFormDirty] = useState(false);
   const [mostrarConfirmarSalir, setMostrarConfirmarSalir] = useState(false);
+<<<<<<< HEAD
+=======
+  const [mostrarModalCliente, setMostrarModalCliente] = useState(false);
+
+  const { notify } = useNotification();
+
+  useEffect(() => {
+    if (mensaje) {
+      notify("success", mensaje);
+      setMensaje("");
+    }
+    if (error) {
+      notify("error", error);
+      setError("");
+    }
+  }, [mensaje, error, notify]);
+>>>>>>> jjmp
   
   useEffect(() => {
     cargarClientes();
@@ -183,6 +204,9 @@ export default function GestionClientes() {
     const texto = busquedaDoc.toLowerCase();
 
     return documentosActivos.filter((doc) => {
+      if (filtroEstado === "activos" && Number(doc.activo) !== 1) return false;
+      if (filtroEstado === "desactivados" && Number(doc.activo) === 1) return false;
+
       return (
         String(doc.id_documento || "").toLowerCase().includes(texto) ||
         doc.titulo?.toLowerCase().includes(texto) ||
@@ -191,7 +215,7 @@ export default function GestionClientes() {
         String(doc.total || "").includes(texto)
       );
     });
-  }, [documentosActivos, busquedaDoc]);
+  }, [documentosActivos, busquedaDoc, filtroEstado]);
 
   const subtotalDocumento = useMemo(() => {
     return documentoForm.items.reduce((total, item) => {
@@ -199,22 +223,22 @@ export default function GestionClientes() {
     }, 0);
   }, [documentoForm.items]);
 
-  const ivaDocumento = subtotalDocumento * (Number(documentoForm.iva || 0) / 100);
-  const totalDocumento = subtotalDocumento + ivaDocumento - Number(documentoForm.descuento || 0);
+  const ivaDocumento = documentoForm.items.reduce((total, item) => {
+    return total + Number(item.subtotal || 0) * (Number(item.iva_porcentaje || 0) / 100);
+  }, 0);
+  const descuentoValor = subtotalDocumento * (Number(documentoForm.descuento || 0) / 100);
+  const totalDocumento = subtotalDocumento + ivaDocumento - descuentoValor;
 
-  const documentosParaAbono = useMemo(() => {
-    return {
-      facturas: facturas.filter((f) => Number(f.saldo_pendiente ?? f.total ?? 0) > 0),
-      contratos: contratos.filter((c) => Number(c.saldo_pendiente ?? c.total ?? 0) > 0),
-    };
-  }, [facturas, contratos]);
+  const facturasPendientes = useMemo(() => {
+    return facturas.filter((f) => Number(f.saldo_pendiente ?? f.total ?? 0) > 0);
+  }, [facturas]);
 
   const cargarClientes = async () => {
     try {
       setCargando(true);
       setError("");
 
-      const response = await fetch(API_CLIENTE);
+      const response = await fetch(API_CLIENTE, { headers: getHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -231,7 +255,7 @@ export default function GestionClientes() {
 
   const cargarDatosDocumento = async () => {
     try {
-      const response = await fetch(`${API_DOCUMENTO}/datos`);
+      const response = await fetch(`${API_DOCUMENTO}/datos`, { headers: getHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -249,7 +273,7 @@ export default function GestionClientes() {
       setCargando(true);
       setError("");
 
-      const response = await fetch(`${API_CLIENTE}/${idCliente}`);
+      const response = await fetch(`${API_CLIENTE}/${idCliente}`, { headers: getHeaders() });
       const data = await response.json();
 
       if (!response.ok) {
@@ -290,7 +314,11 @@ export default function GestionClientes() {
     setMensaje("");
     setError("");
     setClienteDirty(false);
+<<<<<<< HEAD
     setVistaActual("detalle");
+=======
+    setMostrarModalCliente(true);
+>>>>>>> jjmp
   };
 
   const volverLista = () => {
@@ -349,7 +377,7 @@ export default function GestionClientes() {
         esEdicion ? `${API_CLIENTE}/${cliente.id_cliente}` : API_CLIENTE,
         {
           method: esEdicion ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getHeaders(),
           body: JSON.stringify(cliente),
         }
       );
@@ -366,13 +394,25 @@ export default function GestionClientes() {
           : "Cliente registrado correctamente."
       );
 
+<<<<<<< HEAD
 setModoEdicion(false);
       setClienteDirty(false);
+=======
+      setModoEdicion(false);
+      setClienteDirty(false);
+      setMostrarModalCliente(false);
+>>>>>>> jjmp
 
       if (esEdicion) {
         await cargarDetalleCliente(cliente.id_cliente);
       } else {
-        await cargarDetalleCliente(data.id_cliente);
+        setCliente(clienteInicial);
+        setResumen(resumenInicial);
+        setCotizaciones([]);
+        setFacturas([]);
+        setContratos([]);
+        setAbonos([]);
+        setVistaActual("lista");
       }
 
       cargarClientes();
@@ -388,6 +428,7 @@ setModoEdicion(false);
 
       const response = await fetch(`${API_CLIENTE}/${cliente.id_cliente}`, {
         method: "DELETE",
+        headers: getHeaders(),
       });
 
       const data = await response.json();
@@ -470,12 +511,15 @@ setModoEdicion(false);
       return;
     }
 
-    const precioUnitario = Number(producto.precio_venta || 0);
+    const precioConIva = Number(producto.precio_venta || 0);
 
-    if (precioUnitario <= 0) {
+    if (precioConIva <= 0) {
       setError(`El producto ${producto.nombre} no tiene precio de venta calculado.`);
       return;
     }
+
+    const ivaProd = Number(producto.iva_porcentaje || 0);
+    const precioUnitario = ivaProd > 0 ? precioConIva / (1 + ivaProd / 100) : precioConIva;
 
     const cantidad = Number(documentoForm.cantidad);
 
@@ -509,18 +553,20 @@ setModoEdicion(false);
         ...prev,
         id_producto: "",
         cantidad: 1,
-        items: [
-          ...prev.items,
-          {
-            id_producto: producto.id_producto,
-            nombre: producto.nombre,
-            tipo_producto: producto.tipo_producto,
-            unidad_medida: producto.unidad_medida,
-            cantidad,
-            precio_unitario: precioUnitario,
-            subtotal: precioUnitario * cantidad,
-          },
-        ],
+          items: [
+            ...prev.items,
+            {
+              id_producto: producto.id_producto,
+              nombre: producto.nombre,
+              tipo_producto: producto.tipo_producto,
+              unidad_medida: producto.unidad_medida,
+              cantidad,
+              precio_unitario: precioUnitario,
+              subtotal: precioUnitario * cantidad,
+              costo_total: Number(producto.costo_total || 0),
+              iva_porcentaje: Number(producto.iva_porcentaje || 0),
+            },
+          ],
       };
     });
   };
@@ -557,16 +603,24 @@ const guardarDocumentoComercial = async () => {
       return;
     }
 
+    if (Number(documentoForm.descuento || 0) > 100) {
+      setError("El descuento no puede ser mayor a 100%.");
+      return;
+    }
+
     try {
       setGuardandoDocumento(true);
 
       const endpoint = tipo === "cotizacion" ? "cotizacion" : "factura";
 
+      const descuentoPorcentaje = Number(documentoForm.descuento || 0) / 100;
+      const descuentoValorCalculado = subtotalDocumento * descuentoPorcentaje;
+
       const payload = {
         id_cliente: Number(cliente.id_cliente),
         asunto: documentoForm.asunto,
-        iva: Number(documentoForm.iva || 0),
-        descuento: Number(documentoForm.descuento || 0),
+        iva: ivaDocumento,
+        descuento: descuentoValorCalculado,
         observaciones: documentoForm.observaciones,
         condiciones_pago: documentoForm.condiciones_pago,
         items: documentoForm.items.map((item) => ({
@@ -585,7 +639,11 @@ const guardarDocumentoComercial = async () => {
       // 3. Enviar la petición dinámica (PUT o POST)
       const response = await fetch(url, {
         method: esEdicion ? "PUT" : "POST",
+<<<<<<< HEAD
         headers: { "Content-Type": "application/json" },
+=======
+        headers: getHeaders(),
+>>>>>>> jjmp
         body: JSON.stringify(payload),
       });
 
@@ -679,7 +737,11 @@ const guardarDocumentoComercial = async () => {
 
       const response = await fetch(url, {
         method: esEdicion ? "PUT" : "POST",
+<<<<<<< HEAD
         headers: { "Content-Type": "application/json" },
+=======
+        headers: getHeaders(),
+>>>>>>> jjmp
         body: JSON.stringify(payload),
       });
 
@@ -704,6 +766,7 @@ const guardarDocumentoComercial = async () => {
   const handleAbonoChange = (e) => {
     const { name, value, files } = e.target;
     setFormDirty(true);
+<<<<<<< HEAD
 
     if (name === "id_factura") {
       setAbonoForm((prev) => ({
@@ -722,6 +785,8 @@ const guardarDocumentoComercial = async () => {
       }));
       return;
     }
+=======
+>>>>>>> jjmp
 
     if (name === "comprobante") {
       setAbonoForm((prev) => ({
@@ -741,8 +806,8 @@ const guardarDocumentoComercial = async () => {
     setMensaje("");
     setError("");
 
-    if (!abonoForm.id_factura && !abonoForm.id_contrato) {
-      setError("Selecciona una factura o un contrato para aplicar el abono.");
+    if (!abonoForm.id_factura) {
+      setError("Selecciona una factura para aplicar el abono.");
       return;
     }
 
@@ -759,8 +824,7 @@ const guardarDocumentoComercial = async () => {
 
       const formData = new FormData();
       formData.append("id_cliente", cliente.id_cliente);
-      formData.append("id_factura", abonoForm.id_factura || "");
-      formData.append("id_contrato", abonoForm.id_contrato || "");
+      formData.append("id_factura", abonoForm.id_factura);
       formData.append("monto", abonoForm.monto);
       formData.append("metodo_pago", abonoForm.metodo_pago);
       formData.append("referencia", abonoForm.referencia || "");
@@ -776,6 +840,10 @@ const guardarDocumentoComercial = async () => {
 
       const response = await fetch(url, {
         method: esEdicion ? "PUT" : "POST",
+<<<<<<< HEAD
+=======
+        headers: getFileHeaders(),
+>>>>>>> jjmp
         body: formData,
       });
 
@@ -815,6 +883,7 @@ const guardarDocumentoComercial = async () => {
   const accionDocumento = async (accion, doc) => {
     setMenuDocumentoAbierto(null);
 
+<<<<<<< HEAD
     if (accion === "pdf") {
       if (doc.tipo_documento === "Abono" && doc.imagen_comprobante) {
         window.open(getArchivoUrl(doc.imagen_comprobante), "_blank");
@@ -844,11 +913,27 @@ const guardarDocumentoComercial = async () => {
       return;
     }
 
+=======
+    if (accion === "pdf" || accion === "ver") {
+      const mapTipo = {
+        Cotización: "cotizacion",
+        Factura: "factura",
+        Contrato: "contrato",
+        Abono: "abono",
+      };
+      const tipoEndpoint = mapTipo[doc.tipo_documento] || "factura";
+      const url = `${API_DOCUMENTO}/${tipoEndpoint}/${doc.id_documento}/pdf`;
+      window.open(url, "_blank");
+      return;
+    }
+
+>>>>>>> jjmp
     if (accion === "modificar") {
       try {
         setCargando(true);
         setError("");
         setMensaje("");
+<<<<<<< HEAD
 
         let endpoint = "";
         let tipoModal = "";
@@ -970,7 +1055,127 @@ const guardarDocumentoComercial = async () => {
       setLoadingConvertir(false);
     }
   };
+=======
+>>>>>>> jjmp
 
+        let endpoint = "";
+        let tipoModal = "";
+        
+        if (doc.tipo_documento === "Cotización") { endpoint = "cotizacion"; tipoModal = "cotizacion"; }
+        else if (doc.tipo_documento === "Factura") { endpoint = "factura"; tipoModal = "factura"; }
+        else if (doc.tipo_documento === "Contrato") { endpoint = "contrato"; tipoModal = "contrato"; }
+        else if (doc.tipo_documento === "Abono") { endpoint = "abono"; tipoModal = "abono"; }
+
+        let data = {}; // Aquí guardaremos los datos (del backend o de fallback)
+
+        // Intentamos obtener los detalles completos del backend
+        try {
+          const response = await fetch(`${API_DOCUMENTO}/${endpoint}/${doc.id_documento}`, { headers: getHeaders() });
+          console.log(response);
+          if (response.ok) {
+            data = await response.json();
+            console.log(data);
+          } else {
+            // Si el backend lanza 404, usamos los datos básicos que ya tenemos en la vista
+            console.warn(`⚠️ Endpoint GET /api/documento/${endpoint}/${doc.id_documento} no encontrado. Usando datos básicos.`);
+            data = doc; 
+          }
+        } catch (fetchError) {
+          console.warn("⚠️ Error de conexión. Usando datos de la tabla.", fetchError);
+          data = doc;
+        }
+
+        setDocumentoEnEdicion(doc); // Activamos el modo edición
+        setFormDirty(false); // Formulario recien cargado, no esta sucio
+
+        // Llenar los formularios con los datos obtenidos (o los de fallback)
+        if (tipoModal === "cotizacion" || tipoModal === "factura") {
+          setDocumentoForm({
+            asunto: data.asunto || doc.titulo || "",
+            iva: data.iva || 0,
+            descuento: Number(data.descuento) > 0 && Number(data.subtotal) > 0
+              ? Number(((Number(data.descuento) / Number(data.subtotal)) * 100).toFixed(2))
+              : 0,
+            observaciones: data.observaciones || doc.observacion || "",
+            condiciones_pago: data.condiciones_pago || documentoInicial.condiciones_pago,
+            id_producto: "",
+            cantidad: 1,
+            // Si el backend no devolvió items, dejamos el arreglo vacío temporalmente
+            items: data.items || data.detalles ||[] 
+          });
+        } else if (tipoModal === "contrato") {
+          setContratoForm({
+            ...contratoInicial,
+            id_factura: data.id_factura || doc.id_factura || "",
+            asunto: data.asunto || doc.titulo || "",
+            contratista: data.contratista || contratoInicial.contratista,
+            contratante: data.contratante || nombreCompletoCliente(),
+            fecha_inicio: data.fecha_inicio || "",
+            fecha_fin: data.fecha_fin || "",
+            valor_total: data.valor_total || doc.total || "",
+            clausulas: data.clausulas || "",
+            observacion: data.observacion || doc.observacion || ""
+          });
+        } else if (tipoModal === "abono") {
+          setAbonoForm({
+            ...abonoInicial,
+            id_factura: data.id_factura || "",
+            id_contrato: data.id_contrato || "",
+            monto: data.monto || doc.total || "",
+            metodo_pago: data.metodo_pago || abonoInicial.metodo_pago,
+            referencia: data.referencia || "",
+            observacion: data.observacion || doc.observacion || ""
+          });
+        }
+
+        setModalDocumento(tipoModal); // Abrimos el modal
+      } catch (err) {
+        setError("Error al preparar el documento para edición.");
+        console.error(err);
+      } finally {
+        setCargando(false);
+      }
+      return;
+    }
+
+    if (accion === "desactivar" || accion === "activar") {
+      try {
+        const mapTipo = {
+          Cotización: "cotizacion",
+          Factura: "factura",
+          Contrato: "contrato",
+          Abono: "abono",
+        };
+        const tipoEndpoint = mapTipo[doc.tipo_documento] || "factura";
+        const url = accion === "activar"
+          ? `${API_DOCUMENTO}/${tipoEndpoint}/${doc.id_documento}/reactivar`
+          : `${API_DOCUMENTO}/${tipoEndpoint}/${doc.id_documento}`;
+        const method = accion === "desactivar" ? "DELETE" : "PUT";
+        const response = await fetch(url, { method, headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Error al cambiar estado del documento.");
+        setMensaje(`${doc.tipo_documento} #${doc.id_documento} ${accion === "desactivar" ? "desactivado" : "activado"} correctamente.`);
+        await cargarDetalleCliente(cliente.id_cliente);
+      } catch (err) {
+        setError(err.message);
+      }
+      return;
+    }
+
+    if (accion === "aprobar") {
+      try {
+        const url = `${API_DOCUMENTO}/cotizacion/${doc.id_documento}/aprobar`;
+        const response = await fetch(url, { method: "POST", headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Error al aprobar cotización.");
+        setMensaje(`Cotización #${doc.id_documento} aprobada. Factura #${data.id_factura} creada.`);
+        await cargarDetalleCliente(cliente.id_cliente);
+      } catch (err) {
+        setError(err.message);
+      }
+      return;
+    }
+  };
   const tituloDocumentos = {
     cotizaciones: "Cotizaciones",
     facturas: "Facturas",
@@ -1022,25 +1227,17 @@ const guardarDocumentoComercial = async () => {
                     value={documentoForm.asunto}
                     onChange={handleDocumentoChange}
                     placeholder="Ej: Fabricación de puertas, venta de productos..."
+                    maxLength="255"
                   />
                 </div>
 
                 <div>
-                  <label>IVA (%)</label>
+                  <label>Descuento (%)</label>
                   <input
                     type="number"
                     min="0"
-                    name="iva"
-                    value={documentoForm.iva}
-                    onChange={handleDocumentoChange}
-                  />
-                </div>
-
-                <div>
-                  <label>Descuento ($)</label>
-                  <input
-                    type="number"
-                    min="0"
+                    max="100"
+                    step="0.01"
                     name="descuento"
                     value={documentoForm.descuento}
                     onChange={handleDocumentoChange}
@@ -1054,19 +1251,19 @@ const guardarDocumentoComercial = async () => {
                     value={documentoForm.observaciones}
                     onChange={handleDocumentoChange}
                     placeholder="Notas que aparecerán en el documento..."
+                    maxLength="2000"
                   />
                 </div>
 
-                {esCotizacion && (
-                  <div className={styles["field-full"]}>
-                    <label>Condiciones de pago</label>
-                    <textarea
-                      name="condiciones_pago"
-                      value={documentoForm.condiciones_pago}
-                      onChange={handleDocumentoChange}
-                    />
-                  </div>
-                )}
+                <div className={styles["field-full"]}>
+                  <label>Condiciones de pago</label>
+                  <textarea
+                    name="condiciones_pago"
+                    value={documentoForm.condiciones_pago}
+                    onChange={handleDocumentoChange}
+                    maxLength="2000"
+                  />
+                </div>
               </div>
             </section>
 
@@ -1082,10 +1279,8 @@ const guardarDocumentoComercial = async () => {
                     onChange={handleDocumentoChange}
                   >
                     <option value="">Seleccionar producto</option>
-                    {productos.map((p) => (
-                      <option key={p.id_producto} value={p.id_producto}>
-                        {p.nombre} - {formatoMoneda(p.precio_venta)}
-                      </option>
+                    {productos.map(p => (
+                      <option key={p.id_producto} value={p.id_producto}>{p.nombre} - Stock: {Number(p.stock || 0).toFixed(0)} - {formatoMoneda(p.precio_venta)}</option>
                     ))}
                   </select>
                 </div>
@@ -1114,36 +1309,50 @@ const guardarDocumentoComercial = async () => {
                       <th>Producto</th>
                       <th>Cantidad</th>
                       <th>Precio</th>
+                      <th>Costo</th>
+                      <th>IVA %</th>
+                      <th>IVA $</th>
                       <th>Subtotal</th>
                       <th></th>
                     </tr>
                   </thead>
 
                   <tbody>
-                    {documentoForm.items.map((item) => (
-                      <tr key={item.id_producto}>
-                        <td>
-                          <strong>{item.nombre}</strong>
-                          <span>{item.tipo_producto} · {item.unidad_medida || "Unidad"}</span>
-                        </td>
-                        <td>{Number(item.cantidad || 0).toFixed(3)}</td>
-                        <td>{formatoMoneda(item.precio_unitario)}</td>
-                        <td><strong>{formatoMoneda(item.subtotal)}</strong></td>
-                        <td>
-                          <button
-                            type="button"
-                            onClick={() => eliminarProductoDocumento(item.id_producto)}
-                            className={styles["btn-delete-small"]}
-                          >
-                            Quitar
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {documentoForm.items.map((item) => {
+                      const ivaItem = Number(item.subtotal || 0) * (Number(item.iva_porcentaje || 0) / 100);
+                      const ivaP = Number(item.iva_porcentaje || 0);
+                      const precioFinal = ivaP > 0 ? Number(item.precio_unitario) * (1 + ivaP / 100) : Number(item.precio_unitario);
+                      return (
+                        <tr key={item.id_producto}>
+                          <td>
+                            <strong>{item.nombre}</strong>
+                            <span>{item.tipo_producto} · {item.unidad_medida || "Unidad"}</span>
+                          </td>
+                          <td>{Number(item.cantidad || 0).toFixed(3)}</td>
+                          <td>
+                            {formatoMoneda(item.precio_unitario)}
+                            {ivaP > 0 && <small style={{ display: "block", color: "#64748b", fontSize: ".72rem" }}>con IVA: {formatoMoneda(precioFinal)}</small>}
+                          </td>
+                          <td>{formatoMoneda(item.costo_total)}</td>
+                          <td>{ivaP}%</td>
+                          <td>{formatoMoneda(ivaItem)}</td>
+                          <td><strong>{formatoMoneda(item.subtotal)}</strong></td>
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => eliminarProductoDocumento(item.id_producto)}
+                              className={styles["btn-delete-small"]}
+                            >
+                              Quitar
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
 
                     {documentoForm.items.length === 0 && (
                       <tr>
-                        <td colSpan="5" className={styles["empty"]}>No hay productos agregados.</td>
+                        <td colSpan="8" className={styles["empty"]}>No hay productos agregados.</td>
                       </tr>
                     )}
                   </tbody>
@@ -1153,7 +1362,7 @@ const guardarDocumentoComercial = async () => {
               <div className={styles["totals-panel"]}>
                 <div><span>Subtotal</span><strong>{formatoMoneda(subtotalDocumento)}</strong></div>
                 <div><span>IVA</span><strong>{formatoMoneda(ivaDocumento)}</strong></div>
-                <div><span>Descuento</span><strong>{formatoMoneda(documentoForm.descuento)}</strong></div>
+                <div><span>Descuento ({documentoForm.descuento || 0}%)</span><strong>{formatoMoneda(descuentoValor)}</strong></div>
                 <div className={styles["total-final"]}><span>Total</span><strong>{formatoMoneda(totalDocumento)}</strong></div>
               </div>
             </section>
@@ -1188,29 +1397,31 @@ const guardarDocumentoComercial = async () => {
         <div className={styles["mini-grid"]}>
           <div className={styles["field-full"]}>
             <label>Relacionar factura opcional</label>
-            <select name="id_factura" value={contratoForm.id_factura} onChange={handleContratoChange}>
+            <select
+              name="id_factura"
+              value={contratoForm.id_factura}
+              onChange={handleContratoChange}
+            >
               <option value="">Sin factura relacionada</option>
-              {facturas.map((f) => (
-                <option key={f.id_documento} value={f.id_documento}>
-                  Factura #{f.id_documento} - {formatoMoneda(f.total)}
-                </option>
+              {facturas.map(f => (
+                <option key={f.id_documento} value={f.id_documento}>Factura #{f.id_documento} - {formatoMoneda(f.total)}</option>
               ))}
             </select>
           </div>
 
           <div className={styles["field-full"]}>
             <label>Objeto / asunto</label>
-            <input name="asunto" value={contratoForm.asunto} onChange={handleContratoChange} placeholder="Ej: Fabricación e instalación de puertas..." />
+            <input name="asunto" value={contratoForm.asunto} onChange={handleContratoChange} placeholder="Ej: Fabricación e instalación de puertas..." maxLength="255" />
           </div>
 
           <div>
             <label>Contratista</label>
-            <input name="contratista" value={contratoForm.contratista} onChange={handleContratoChange} />
+            <input name="contratista" value={contratoForm.contratista} onChange={handleContratoChange} maxLength="255" />
           </div>
 
           <div>
             <label>Contratante</label>
-            <input name="contratante" value={contratoForm.contratante} onChange={handleContratoChange} />
+            <input name="contratante" value={contratoForm.contratante} onChange={handleContratoChange} maxLength="255" />
           </div>
 
           <div>
@@ -1225,17 +1436,17 @@ const guardarDocumentoComercial = async () => {
 
           <div>
             <label>Valor total</label>
-            <input type="number" name="valor_total" value={contratoForm.valor_total} onChange={handleContratoChange} placeholder="0" />
+            <input type="number" name="valor_total" min="0" step="0.01" value={contratoForm.valor_total} onChange={handleContratoChange} placeholder="0" />
           </div>
 
           <div className={styles["field-full"]}>
             <label>Cláusulas adicionales</label>
-            <textarea name="clausulas" value={contratoForm.clausulas} onChange={handleContratoChange} placeholder="Escribe cláusulas adicionales si las necesitas..." />
+            <textarea name="clausulas" value={contratoForm.clausulas} onChange={handleContratoChange} placeholder="Escribe cláusulas adicionales si las necesitas..." maxLength="5000" />
           </div>
 
           <div className={styles["field-full"]}>
             <label>Observación interna</label>
-            <textarea name="observacion" value={contratoForm.observacion} onChange={handleContratoChange} placeholder="Notas internas del contrato..." />
+            <textarea name="observacion" value={contratoForm.observacion} onChange={handleContratoChange} placeholder="Notas internas del contrato..." maxLength="2000" />
           </div>
         </div>
 
@@ -1256,68 +1467,92 @@ const guardarDocumentoComercial = async () => {
           <div>
             <span className={styles["modal-badge"]}>Abono</span>
             <h3>{documentoEnEdicion ? "Modificar abono" : "Registrar abono"}</h3>
+<<<<<<< HEAD
             <p>Registra pagos parciales o totales sobre facturas o contratos del cliente.</p>
+=======
+            <p>Registra pagos parciales o totales sobre facturas del cliente.</p>
+>>>>>>> jjmp
           </div>
           <button type="button" onClick={cerrarModalDocumento} className={styles["btn-close"]}>×</button>
         </div>
 
         <div className={styles["mini-grid"]}>
-          <div>
-            <label>Factura</label>
-            <select name="id_factura" value={abonoForm.id_factura} onChange={handleAbonoChange} disabled={Boolean(abonoForm.id_contrato)}>
-              <option value="">Sin factura</option>
-              {documentosParaAbono.facturas.map((f) => (
-                <option key={f.id_documento} value={f.id_documento}>
-                  Factura #{f.id_documento} - Saldo {formatoMoneda(f.saldo_pendiente ?? f.total)}
-                </option>
-              ))}
-            </select>
-          </div>
+          {facturasPendientes.length === 0 ? (
+            <div className={styles["field-full"]}>
+              <p className="text-sm text-gray-500 text-center py-4">No hay facturas pendientes para este cliente.</p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label>Factura</label>
+                <select
+                  name="id_factura"
+                  value={abonoForm.id_factura}
+                  onChange={handleAbonoChange}
+                >
+                  <option value="">Seleccionar factura</option>
+                  {facturasPendientes.map(f => (
+                    <option key={f.id_documento} value={f.id_documento}>Factura #{f.id_documento} - Saldo {formatoMoneda(f.saldo_pendiente ?? f.total)}</option>
+                  ))}
+                </select>
+              </div>
 
-          <div>
-            <label>Contrato</label>
-            <select name="id_contrato" value={abonoForm.id_contrato} onChange={handleAbonoChange} disabled={Boolean(abonoForm.id_factura)}>
-              <option value="">Sin contrato</option>
-              {documentosParaAbono.contratos.map((c) => (
-                <option key={c.id_documento} value={c.id_documento}>
-                  Contrato #{c.id_documento} - Saldo {formatoMoneda(c.saldo_pendiente ?? c.total)}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div>
+                <label>Monto</label>
+                <input type="number" name="monto" min="0" step="0.01" value={abonoForm.monto} onChange={handleAbonoChange} placeholder="0" />
+              </div>
 
-          <div>
-            <label>Monto</label>
-            <input type="number" name="monto" value={abonoForm.monto} onChange={handleAbonoChange} placeholder="0" />
-          </div>
+              <div>
+                <label>Método de pago</label>
+                <select name="metodo_pago" value={abonoForm.metodo_pago} onChange={handleAbonoChange}>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Tarjeta">Tarjeta</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
 
-          <div>
-            <label>Método de pago</label>
-            <select name="metodo_pago" value={abonoForm.metodo_pago} onChange={handleAbonoChange}>
-              <option value="Efectivo">Efectivo</option>
-              <option value="Transferencia">Transferencia</option>
-              <option value="Tarjeta">Tarjeta</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
+              <div>
+                <label>Referencia</label>
+                <input name="referencia" value={abonoForm.referencia} onChange={handleAbonoChange} placeholder="N° transferencia, recibo, nota..." maxLength="255" />
+              </div>
 
-          <div>
-            <label>Referencia</label>
-            <input name="referencia" value={abonoForm.referencia} onChange={handleAbonoChange} placeholder="N° transferencia, recibo, nota..." />
-          </div>
+              <div>
+                <label>Comprobante</label>
+                <input type="file" name="comprobante" accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf" onChange={handleAbonoChange} />
+              </div>
 
-          <div>
-            <label>Comprobante</label>
-            <input type="file" name="comprobante" accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf" onChange={handleAbonoChange} />
-          </div>
-
-          <div className={styles["field-full"]}>
-            <label>Observación</label>
-            <textarea name="observacion" value={abonoForm.observacion} onChange={handleAbonoChange} placeholder="Detalles del pago o comprobante..." />
-          </div>
+              <div className={styles["field-full"]}>
+                <label>Observación</label>
+                <textarea name="observacion" value={abonoForm.observacion} onChange={handleAbonoChange} placeholder="Detalles del pago o comprobante..." maxLength="2000" />
+              </div>
+            </>
+          )}
         </div>
 
+        {facturasPendientes.length > 0 && (
+          <div className={styles["modal-actions"]}>
+            <button type="button" onClick={cerrarModalDocumento} className={styles["btn-light"]}>Cancelar</button>
+            <button type="button" onClick={guardarAbono} className={styles["btn-primary"]} disabled={guardandoDocumento}>
+              {guardandoDocumento ? "Guardando..." : (documentoEnEdicion ? "Actualizar abono" : "Registrar abono")}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderConfirmarSalir = () => (
+    <div className={styles["modal-overlay"]}>
+      <div className={`${styles["modal"]} ${styles["modal-sm"]}`}>
+        <div className={styles["modal-header"]}>
+          <h3>¿Salir sin guardar?</h3>
+        </div>
+        <div className={styles["modal-body"]}>
+          <p>Tenés cambios sin guardar. Si salís ahora, se perderán.</p>
+        </div>
         <div className={styles["modal-actions"]}>
+<<<<<<< HEAD
           <button type="button" onClick={cerrarModalDocumento} className={styles["btn-light"]}>Cancelar</button>
           <button type="button" onClick={guardarAbono} className={styles["btn-primary"]} disabled={guardandoDocumento}>
             {guardandoDocumento ? "Guardando..." : (documentoEnEdicion ? "Actualizar abono" : "Registrar abono")}
@@ -1337,6 +1572,8 @@ const guardarDocumentoComercial = async () => {
           <p>Tenés cambios sin guardar. Si salís ahora, se perderán.</p>
         </div>
         <div className={styles["modal-actions"]}>
+=======
+>>>>>>> jjmp
           <button type="button" onClick={() => setMostrarConfirmarSalir(false)} className={styles["btn-light"]}>
             Quedarme
           </button>
@@ -1357,8 +1594,29 @@ const guardarDocumentoComercial = async () => {
 
   return (
     <div className={styles["page"]}>
-      {mensaje && <div className={styles["alerta-exito"]}>{mensaje}</div>}
-      {error && <div className={styles["alerta-error"]}>{error}</div>}
+      {mostrarConfirmarSalir && (
+        <div className={styles["modal-overlay"]} onClick={(e) => { if (e.target === e.currentTarget) setMostrarConfirmarSalir(false); }}>
+          <div className={`${styles["modal"]} ${styles["modal-sm"]}`}>
+            <div className={styles["modal-header"]}>
+              <h3>¿Salir sin guardar?</h3>
+            </div>
+            <div className={styles["modal-body"]}>
+              <p>Tenés cambios sin guardar. Si salís ahora, se perderán.</p>
+            </div>
+            <div className={styles["modal-actions"]}>
+              <button type="button" onClick={() => setMostrarConfirmarSalir(false)} className={styles["btn-light"]}>Quedarme</button>
+              <button type="button" onClick={() => {
+                setMostrarConfirmarSalir(false);
+                if (tipoConfirmarSalir === 'cliente') {
+                  volverLista();
+                } else {
+                  cerrarModalDocumento(true);
+                }
+              }} className={styles["btn-primary"]}>Salir sin guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {mostrarConfirmarSalir && (
         <div className={styles["modal-overlay"]} onClick={(e) => { if (e.target === e.currentTarget) setMostrarConfirmarSalir(false); }}>
@@ -1618,37 +1876,37 @@ const guardarDocumentoComercial = async () => {
 
                 <div>
                   <label>Documento</label>
-                  <input type="text" name="documento" value={cliente.documento || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Documento" />
+                  <input type="text" name="documento" value={cliente.documento || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Documento" maxLength="50" />
                 </div>
 
                 <div className={styles["field-large"]}>
                   <label>Nombre / Razón social</label>
-                  <input type="text" name="nombre" value={cliente.nombre || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Nombre del cliente" />
+                  <input type="text" name="nombre" value={cliente.nombre || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Nombre del cliente" maxLength="255" />
                 </div>
 
                 <div>
                   <label>Apellido</label>
-                  <input type="text" name="apellido" value={cliente.apellido || ""} onChange={handleClienteChange} disabled={!modoEdicion || cliente.tipo_cliente === "Empresa"} placeholder="Apellido" />
+                  <input type="text" name="apellido" value={cliente.apellido || ""} onChange={handleClienteChange} disabled={!modoEdicion || cliente.tipo_cliente === "Empresa"} placeholder="Apellido" maxLength="255" />
                 </div>
 
                 <div>
                   <label>Teléfono</label>
-                  <input type="text" name="telefono" value={cliente.telefono || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Teléfono" />
+                  <input type="tel" name="telefono" value={cliente.telefono || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Teléfono" pattern="[\d\s+\-()]{7,20}" title="Ingresa un número de teléfono válido (7-20 dígitos)" maxLength="20" />
                 </div>
 
                 <div>
                   <label>Correo</label>
-                  <input type="email" name="correo" value={cliente.correo || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="correo@cliente.com" />
+                  <input type="email" name="correo" value={cliente.correo || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="correo@cliente.com" maxLength="255" />
                 </div>
 
                 <div className={styles["field-full"]}>
                   <label>Dirección</label>
-                  <input type="text" name="direccion" value={cliente.direccion || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Dirección" />
+                  <input type="text" name="direccion" value={cliente.direccion || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Dirección" maxLength="255" />
                 </div>
 
                 <div className={styles["field-full"]}>
                   <label>Observación</label>
-                  <textarea name="observacion" value={cliente.observacion || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Notas internas del cliente..." />
+                  <textarea name="observacion" value={cliente.observacion || ""} onChange={handleClienteChange} disabled={!modoEdicion} placeholder="Notas internas del cliente..." maxLength="2000" />
                 </div>
               </div>
 
@@ -1698,7 +1956,11 @@ const guardarDocumentoComercial = async () => {
           </section>
 
           {cliente.id_cliente && (
+<<<<<<< HEAD
             <section className={styles["card"]}>
+=======
+            <section className={`${styles["card"]} ${styles["card-documentos"]}`}>
+>>>>>>> jjmp
               <div className={styles["card-header"]}>
                 <div>
                   <h2>Historial del cliente</h2>
@@ -1719,7 +1981,15 @@ const guardarDocumentoComercial = async () => {
                     <option value="contratos">Contratos</option>
                     <option value="abonos">Abonos</option>
                   </select>
+<<<<<<< HEAD
 
+=======
+                  <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
+                    <option value="activos">Activos</option>
+                    <option value="desactivados">Desactivados</option>
+                    <option value="todos">Todos</option>
+                  </select>
+>>>>>>> jjmp
                   <input type="text" placeholder={`Buscar en ${tituloDocumentos[tipoDocumentos]}...`} value={busquedaDoc} onChange={(e) => setBusquedaDoc(e.target.value)} />
                 </div>
               </div>
@@ -1734,7 +2004,10 @@ const guardarDocumentoComercial = async () => {
                       <th>Total / Monto</th>
                       <th>Observación</th>
                       <th></th>
+<<<<<<< HEAD
                       <th></th>
+=======
+>>>>>>> jjmp
                     </tr>
                   </thead>
 
@@ -1748,6 +2021,7 @@ const guardarDocumentoComercial = async () => {
 
                         <td>{formatoFecha(doc.fecha)}</td>
 
+<<<<<<< HEAD
                         <td onDoubleClick={() => {
                           if (doc.tipo_documento === "Cotización" || doc.tipo_documento === "Factura") {
                             setEditandoEstadoDoc({ id: doc.id_documento, tipo: doc.tipo_documento, estado: doc.estado });
@@ -1797,12 +2071,30 @@ const guardarDocumentoComercial = async () => {
                               {doc.tipo_documento === "Abono" ? (doc.metodo_pago || "Sin método") : (doc.estado || "Sin estado")}
                             </span>
                           )}
+=======
+                        <td>
+                          <span
+                            className={
+                              Number(doc.activo) !== 1
+                                ? styles["pill-gray"]
+                                : doc.estado === "Pagada" ||
+                                  doc.estado === "Aprobada" ||
+                                  doc.estado === "Activo" ||
+                                  doc.estado === "Efectivo"
+                                ? styles["pill-success"]
+                                : styles["pill-blue"]
+                            }
+                          >
+                            {Number(doc.activo) !== 1 ? "Desactivado" : doc.estado || "Sin estado"}
+                          </span>
+>>>>>>> jjmp
                         </td>
 
                         <td><strong>{formatoMoneda(doc.total)}</strong></td>
 
                         <td>{doc.observacion || "Sin observación"}</td>
 
+<<<<<<< HEAD
                         <td>
                           {doc.tipo_documento === "Cotización" && doc.estado !== "Convertida" && (
                             <button
@@ -1815,6 +2107,8 @@ const guardarDocumentoComercial = async () => {
                           )}
                         </td>
 
+=======
+>>>>>>> jjmp
                         <td className={styles["actions-cell"]}>
                           <button
                             type="button"
@@ -1826,7 +2120,21 @@ const guardarDocumentoComercial = async () => {
 
                           {menuDocumentoAbierto === `${tipoDocumentos}-${doc.id_documento}` && (
                             <div className={styles["doc-menu"]}>
+<<<<<<< HEAD
                               <button type="button" onClick={() => accionDocumento("modificar", doc)}>Modificar</button>
+=======
+                              {Number(doc.activo) === 1 ? (
+                                <>
+                                  <button type="button" onClick={() => accionDocumento("modificar", doc)}>Modificar</button>
+                                  <button type="button" onClick={() => accionDocumento("desactivar", doc)}>Desactivar</button>
+                                  {doc.tipo_documento === "Cotización" && doc.estado !== "Aprobada" && (
+                                    <button type="button" onClick={() => accionDocumento("aprobar", doc)} className={styles["btn-aprobar"]}>Aprobar</button>
+                                  )}
+                                </>
+                              ) : (
+                                <button type="button" onClick={() => accionDocumento("activar", doc)}>Activar</button>
+                              )}
+>>>>>>> jjmp
                               <button type="button" onClick={() => accionDocumento("pdf", doc)}>
                                 {doc.tipo_documento === "Abono" ? "Ver comprobante" : "Ver PDF"}
                               </button>
@@ -1838,8 +2146,17 @@ const guardarDocumentoComercial = async () => {
 
                     {documentosFiltrados.length === 0 && (
                       <tr>
+<<<<<<< HEAD
                         <td colSpan="7" className={styles["empty"]}>
                           No hay {tituloDocumentos[tipoDocumentos].toLowerCase()} registrados para este cliente.
+=======
+                        <td colSpan="6" className={styles["empty"]}>
+                          {filtroEstado === "activos"
+                            ? `No hay ${tituloDocumentos[tipoDocumentos].toLowerCase()} activos para este cliente.`
+                            : filtroEstado === "desactivados"
+                            ? `No hay ${tituloDocumentos[tipoDocumentos].toLowerCase()} desactivados para este cliente.`
+                            : `No hay ${tituloDocumentos[tipoDocumentos].toLowerCase()} registrados para este cliente.`}
+>>>>>>> jjmp
                         </td>
                       </tr>
                     )}
@@ -1929,6 +2246,84 @@ const guardarDocumentoComercial = async () => {
       {(modalDocumento === "cotizacion" || modalDocumento === "factura") && renderModalDocumentoComercial()}
       {modalDocumento === "contrato" && renderModalContrato()}
       {modalDocumento === "abono" && renderModalAbono()}
+
+      {mostrarModalCliente && (
+        <div className={styles["modal-overlay"]} onClick={() => setMostrarModalCliente(false)}>
+          <div className={`${styles.modal} ${styles["modal-lg"]}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "38rem" }}>
+            <div className={styles["modal-header"]}>
+              <div>
+                <h3>{modoEdicion && cliente.id_cliente ? "Editar cliente" : "Nuevo cliente"}</h3>
+                <p>Registra los datos principales del cliente.</p>
+              </div>
+              <button type="button" className={styles["btn-close"]} onClick={() => setMostrarModalCliente(false)}>×</button>
+            </div>
+
+            <form onSubmit={guardarCliente}>
+              <div className={styles["form-grid"]}>
+                <div>
+                  <label>Tipo de cliente</label>
+                  <select name="tipo_cliente" value={cliente.tipo_cliente || "Persona"} onChange={handleClienteChange}>
+                    <option value="Persona">Persona</option>
+                    <option value="Empresa">Empresa</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Tipo documento</label>
+                  <select name="tipo_documento" value={cliente.tipo_documento || "CC"} onChange={handleClienteChange}>
+                    <option value="CC">CC</option>
+                    <option value="CE">CE</option>
+                    <option value="NIT">NIT</option>
+                    <option value="PAS">Pasaporte</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Documento</label>
+                  <input type="text" name="documento" value={cliente.documento || ""} onChange={handleClienteChange} placeholder="Documento" maxLength="50" />
+                </div>
+
+                <div className={styles["field-large"]}>
+                  <label>Nombre / Razón social</label>
+                  <input type="text" name="nombre" value={cliente.nombre || ""} onChange={handleClienteChange} placeholder="Nombre del cliente" maxLength="255" />
+                </div>
+
+                <div>
+                  <label>Apellido</label>
+                  <input type="text" name="apellido" value={cliente.apellido || ""} onChange={handleClienteChange} disabled={cliente.tipo_cliente === "Empresa"} placeholder="Apellido" maxLength="255" />
+                </div>
+
+                <div>
+                  <label>Teléfono</label>
+                  <input type="tel" name="telefono" value={cliente.telefono || ""} onChange={handleClienteChange} placeholder="Teléfono" pattern="[\d\s+\-()]{7,20}" title="Ingresa un número de teléfono válido (7-20 dígitos)" maxLength="20" />
+                </div>
+
+                <div>
+                  <label>Correo</label>
+                  <input type="email" name="correo" value={cliente.correo || ""} onChange={handleClienteChange} placeholder="correo@cliente.com" maxLength="255" />
+                </div>
+
+                <div className={styles["field-full"]}>
+                  <label>Dirección</label>
+                  <input type="text" name="direccion" value={cliente.direccion || ""} onChange={handleClienteChange} placeholder="Dirección" maxLength="255" />
+                </div>
+
+                <div className={styles["field-full"]}>
+                  <label>Observación</label>
+                  <textarea name="observacion" value={cliente.observacion || ""} onChange={handleClienteChange} placeholder="Notas internas del cliente..." maxLength="2000" />
+                </div>
+              </div>
+
+              <div className={styles["modal-actions"]}>
+                <button type="button" className={styles["btn-light"]} onClick={() => setMostrarModalCliente(false)}>Cancelar</button>
+                <button type="submit" className={styles["btn-primary"]}>
+                  {modoEdicion && cliente.id_cliente ? "Actualizar cliente" : "Registrar cliente"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

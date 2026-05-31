@@ -2,6 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { DollarSign, ArrowDownCircle, Package, TrendingUp, X, FileText, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+<<<<<<< HEAD
+=======
+import { apiFetch } from '@/services/api';
+>>>>>>> jjmp
 
 const MESES_INDEX = { 'Ene': 1, 'Feb': 2, 'Mar': 3, 'Abr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Ago': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dic': 12 };
 const MESES_NOMBRE = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -27,19 +31,27 @@ export default function DashboardHome() {
   const [productosData, setProductosData] = useState(null);
   const [cotizacionesData, setCotizacionesData] = useState(null);
   const [contratosData, setContratosData] = useState(null);
+<<<<<<< HEAD
   const [errorDashboard, setErrorDashboard] = useState(null);
   const [errorCotizaciones, setErrorCotizaciones] = useState(null);
   const [errorContratos, setErrorContratos] = useState(null);
   const [loadingCotizaciones, setLoadingCotizaciones] = useState(false);
   const [loadingContratos, setLoadingContratos] = useState(false);
+=======
+  const [stockAlerts, setStockAlerts] = useState(null);
+>>>>>>> jjmp
 
   useEffect(() => {
     const cargarDatos = async () => {
       try {
+<<<<<<< HEAD
         setErrorDashboard(null);
         const response = await fetch('http://localhost:3001/api/dashboard');
         if (!response.ok) throw new Error('Error cargando dashboard');
         const resultado = await response.json();
+=======
+        const resultado = await apiFetch('http://localhost:3001/api/dashboard');
+>>>>>>> jjmp
         setData(resultado);
       } catch (error) {
         console.error("Error conectando al servidor:", error);
@@ -49,6 +61,7 @@ export default function DashboardHome() {
     cargarDatos();
   }, []);
 
+<<<<<<< HEAD
 useEffect(() => {
     const cargarCotizaciones = async () => {
       try {
@@ -73,6 +86,19 @@ useEffect(() => {
         setErrorCotizaciones(error.message);
       } finally {
         setLoadingCotizaciones(false);
+=======
+  useEffect(() => {
+    const cargarCotizaciones = async () => {
+      try {
+        const [productosRes, detalleRes] = await Promise.all([
+          apiFetch(`http://localhost:3001/api/dashboard/cotizaciones/productos?mes=${String(selectedMes).padStart(2, '0')}&year=${selectedYear}`),
+          apiFetch(`http://localhost:3001/api/dashboard/cotizaciones/detalle?mes=${String(selectedMes).padStart(2, '0')}&year=${selectedYear}`)
+        ]);
+        setProductosData(productosRes);
+        setCotizacionesData(detalleRes);
+      } catch (error) {
+        console.error("Error:", error);
+>>>>>>> jjmp
       }
     };
     cargarCotizaciones();
@@ -81,6 +107,7 @@ useEffect(() => {
   useEffect(() => {
     const cargarContratos = async () => {
       try {
+<<<<<<< HEAD
         setErrorContratos(null);
         setLoadingContratos(true);
         const res = await fetch(`http://localhost:3001/api/dashboard/contratos?mes=${selectedMes}&year=${selectedYear}`);
@@ -95,11 +122,18 @@ useEffect(() => {
         setErrorContratos(error.message);
       } finally {
         setLoadingContratos(false);
+=======
+        const res = await apiFetch(`http://localhost:3001/api/dashboard/contratos?mes=${selectedMes}&year=${selectedYear}`);
+        setContratosData(res);
+      } catch (error) {
+        console.error("Error:", error);
+>>>>>>> jjmp
       }
     };
     cargarContratos();
   }, [selectedMes, selectedYear]);
 
+<<<<<<< HEAD
   if (errorDashboard) return (
     <div className="p-10 text-center text-red-500 font-bold">
       <p className="text-xl mb-2">Error cargando dashboard</p>
@@ -107,6 +141,20 @@ useEffect(() => {
       <p className="text-sm mt-4">Verifica que el backend esté corriendo en puerto 3001</p>
     </div>
   );
+=======
+  useEffect(() => {
+    const cargarStockAlerts = async () => {
+      try {
+        const res = await apiFetch('http://localhost:3001/api/fabricacion/stock-bajo');
+        setStockAlerts(res);
+      } catch (error) {
+        console.error("Error cargando alertas de stock:", error);
+      }
+    };
+    cargarStockAlerts();
+  }, []);
+
+>>>>>>> jjmp
   if (!data) return <div className="p-10 text-center text-gray-500 font-bold">Cargando estadísticas de SalERP...</div>;
 
   return (
@@ -127,10 +175,65 @@ useEffect(() => {
         <StatCard title="Alertas Stock" value={data.tarjetas.alertas} icon={<Package/>} color="text-amber-600" bg="bg-amber-50" footer="Productos con 3 o menos unidades" />
       </div>
 
+<<<<<<< HEAD
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <h3 className="text-lg font-bold text-gray-800 mb-6">Comparativa Mensual: Ingresos vs Gastos</h3>
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height={300}>
+=======
+      {stockAlerts && (stockAlerts.productos?.length > 0 || stockAlerts.insumos?.length > 0) && (
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Package size={20} className="text-amber-600" />
+              <h3 className="text-lg font-bold text-gray-800">Alertas de Stock Bajo</h3>
+            </div>
+            <span className="text-sm font-medium text-amber-600">
+              {((stockAlerts.productos?.length || 0) + (stockAlerts.insumos?.length || 0))} items en alerta
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {stockAlerts.productos?.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-600 mb-2">Productos</h4>
+                <div className="space-y-2">
+                  {stockAlerts.productos.slice(0, 5).map(p => (
+                    <div key={p.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{p.nombre}</p>
+                        <p className="text-xs text-red-500">Stock: {Number(p.stock).toFixed(2)} / Min: {Number(p.stock_minimo).toFixed(2)}</p>
+                      </div>
+                      <span className="text-xs font-bold text-red-600">{p.tipo_producto || 'Producto'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {stockAlerts.insumos?.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-600 mb-2">Insumos</h4>
+                <div className="space-y-2">
+                  {stockAlerts.insumos.slice(0, 5).map(i => (
+                    <div key={i.id} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-100">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{i.nombre}</p>
+                        <p className="text-xs text-orange-500">Stock: {Number(i.stock).toFixed(2)} / Min: {Number(i.stock_minimo).toFixed(2)}</p>
+                      </div>
+                      <span className="text-xs text-orange-600">{i.proveedor || 'Sin prov.'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <h3 className="text-lg font-bold text-gray-800 mb-6">Comparativa Mensual: Ingresos vs Gastos</h3>
+        <div className="h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+>>>>>>> jjmp
             <BarChart data={data.grafica}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} />
@@ -161,12 +264,16 @@ useEffect(() => {
           </div>
         </div>
 
+<<<<<<< HEAD
         {errorCotizaciones ? (
           <div className="text-center py-10 text-red-500">
             <p className="font-bold">Error cargando cotizaciones</p>
             <p className="text-sm">{errorCotizaciones}</p>
           </div>
         ) : loadingCotizaciones || !productosData ? (
+=======
+        {!productosData ? (
+>>>>>>> jjmp
           <div className="text-center py-10 text-gray-500">Cargando...</div>
         ) : (
           <>
@@ -216,7 +323,11 @@ useEffect(() => {
               ) : cotizacionesData.map((cot) => (
                 <div key={cot.id_cotizacion} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                   <div className="flex items-center gap-3">
+<<<<<<< HEAD
                     <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cot.estado === 'Aceptada' ? 'bg-green-500' : cot.estado === 'Rechazada' ? 'bg-red-500' : cot.estado === 'Convertida' ? 'bg-blue-500' : 'bg-yellow-500'}`} />
+=======
+                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${cot.estado === 'Aprobada' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+>>>>>>> jjmp
                     <div>
                       <p className="text-sm font-medium text-gray-800">{cot.cliente}</p>
                       <p className="text-xs text-gray-500">{cot.asunto || 'Sin asunto'} · {new Date(cot.fecha).toLocaleDateString('es-CO')}</p>
@@ -240,12 +351,16 @@ useEffect(() => {
             <h3 className="text-lg font-bold text-gray-800">Contratos Vigentes</h3>
           </div>
         </div>
+<<<<<<< HEAD
         {errorContratos ? (
           <div className="text-center py-6 text-red-500">
             <p className="font-bold">Error cargando contratos</p>
             <p className="text-sm">{errorContratos}</p>
           </div>
         ) : loadingContratos || !contratosData ? (
+=======
+        {!contratosData ? (
+>>>>>>> jjmp
           <div className="text-center py-6 text-gray-500">Cargando...</div>
         ) : (
           <>
@@ -373,9 +488,13 @@ function MonthDetailModal({ mesIndex, mesName, onClose }) {
   useEffect(() => {
     const fetchDetail = async () => {
       try {
+<<<<<<< HEAD
         const response = await fetch(`http://localhost:3001/api/dashboard/detalle?mes=${mesIndex}&year=${year}`);
         if (!response.ok) throw new Error('Error cargando detalle');
         const data = await response.json();
+=======
+        const data = await apiFetch(`http://localhost:3001/api/dashboard/detalle?mes=${mesIndex}&year=${year}`);
+>>>>>>> jjmp
         setInfo(data);
       } catch (error) {
         console.error("Error:", error);
@@ -444,4 +563,8 @@ function MonthDetailModal({ mesIndex, mesName, onClose }) {
       </div>
     </div>
   );
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> jjmp
