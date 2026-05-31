@@ -130,7 +130,7 @@ useEffect(() => {
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <h3 className="text-lg font-bold text-gray-800 mb-6">Comparativa Mensual: Ingresos vs Gastos</h3>
         <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={data.grafica}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} />

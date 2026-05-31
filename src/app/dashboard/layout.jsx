@@ -26,7 +26,7 @@ const SidebarItem = ({ href, icon: Icon, title, label, isHighlighted, onClick })
 );
 
 const ClienteIcon = () => <Image width={32} height={32} src="/nueva-cuenta.png" alt="cliente" />;
-const MaquinariaIcon = () => <Image width={32} height={32} src="/excavader.png" alt="maquinaria" />;
+const MaquinariaIcon = () => <Image width={32} height={32} src="/excavador.png" alt="maquinaria" />;
 const ProductosIcon = () => <Image width={32} height={32} src="/agregar-producto.png" alt="productos" />;
 const GastoIcon = () => <Image width={32} height={32} src="/gastos.png" alt="gastos" />;
 const ProveedorIcon = () => <Image width={32} height={32} src="/proveedor.png" alt='proveedor' />;
