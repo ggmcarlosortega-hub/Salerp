@@ -45,12 +45,9 @@ export default function GestionProveedores() {
 
   const [insumoForm, setInsumoForm] = useState(insumoInicial);
   const [entradaForm, setEntradaForm] = useState(entradaInicial);
-<<<<<<< HEAD
   const [insumoEditando, setInsumoEditando] = useState(null);
-=======
   const [categoriasInsumo, setCategoriasInsumo] = useState([]);
   const [categoriasProducto, setCategoriasProducto] = useState([]);
->>>>>>> jjmp
 
   const [modoEdicion, setModoEdicion] = useState(false);
   const [busqueda, setBusqueda] = useState(""); // Filtro para lista de proveedores
@@ -246,12 +243,9 @@ export default function GestionProveedores() {
     setModoEdicion(true);
     setMensaje("");
     setError("");
-<<<<<<< HEAD
     setProveedorDirty(true);
     setVistaActual("detalle");
-=======
     setMostrarModalProveedor(true);
->>>>>>> jjmp
   };
 
   // Abre el modal en modo edicion para modificar el proveedor actual
@@ -271,16 +265,12 @@ export default function GestionProveedores() {
     setInsumoForm(insumoInicial);
     setEntradaForm(entradaInicial);
     setModoEdicion(false);
-<<<<<<< HEAD
     setProveedorDirty(false);
-=======
     setBusquedaInsumo(""); // Limpia filtro de insumos
->>>>>>> jjmp
     setVistaActual("lista");
     cargarProveedores();
   };
 
-<<<<<<< HEAD
   const manejarSalirProveedor = (force = false) => {
     if (proveedorDirty && !force) {
       setMostrarConfirmarSalir(true);
@@ -289,13 +279,11 @@ export default function GestionProveedores() {
     volverLista();
   };
 
-=======
   // ============================================================
   // HANDLERS: Cambios en formularios
   // ============================================================
 
   // Handler generico para el formulario del proveedor (modal)
->>>>>>> jjmp
   const handleProveedorChange = (e) => {
     const { name, value } = e.target;
     setProveedorDirty(true);
@@ -399,7 +387,6 @@ export default function GestionProveedores() {
     }
 
     try {
-<<<<<<< HEAD
       const esEdicion = Boolean(insumoEditando);
       const url = esEdicion
         ? `${API_PROVEEDOR}/insumos/${insumoEditando}`
@@ -407,12 +394,7 @@ export default function GestionProveedores() {
 
       const response = await fetch(url, {
         method: esEdicion ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-=======
-      const response = await fetch(`${API_PROVEEDOR}/${proveedor.id_proveedor}/insumos`, {
-        method: "POST",
         headers: getHeaders(),
->>>>>>> jjmp
         body: JSON.stringify(insumoForm),
       });
 
@@ -433,7 +415,6 @@ export default function GestionProveedores() {
     }
   };
 
-<<<<<<< HEAD
   const iniciarEdicionInsumo = (item) => {
     setInsumoEditando(item.id_insumo);
     setError('');
@@ -453,9 +434,7 @@ export default function GestionProveedores() {
     setInsumoForm(insumoInicial);
   };
 
-=======
   // Registra una entrada de inventario (compra/aumento de stock de un insumo)
->>>>>>> jjmp
   const registrarEntrada = async (e) => {
     e.preventDefault();
 

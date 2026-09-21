@@ -525,16 +525,6 @@ export default function GestionProductos() {
                 <h2>Productos registrados</h2>
                 <p>Estos productos podrán alimentar luego el catálogo de clientes.</p>
               </div>
-<<<<<<< HEAD
-              <div className={styles["search-box"]}>
-                <span>⌕</span>
-                <input
-                  type="text"
-                  placeholder="Buscar producto..."
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                />
-=======
               <div className={styles["header-actions"]}>
                 <div className={styles["search-box"]}>
                   <span>⌕</span>
@@ -545,7 +535,7 @@ export default function GestionProductos() {
                     onChange={(e) => setBusqueda(e.target.value)}
                   />
                 </div>
-                <select value={categoriaFiltro} onChange={(e) => setCategoriaFiltro(e.target.value)}>
+                <select className={styles["filter-select"]} value={categoriaFiltro} onChange={(e) => setCategoriaFiltro(e.target.value)}>
                   <option value="">Todas las categorías</option>
                   {categorias.map(c => (
                     <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
@@ -554,18 +544,7 @@ export default function GestionProductos() {
                 <button type="button" onClick={() => setMostrarGestionCategorias(true)} className={styles["btn-light"]}>
                   Gestionar categorías
                 </button>
->>>>>>> jjmp
               </div>
-              <select
-                className={styles["filter-select"]}
-                value={categoriaFiltro}
-                onChange={(e) => setCategoriaFiltro(e.target.value)}
-              >
-                <option value="">Todas las categorías</option>
-                {categorias.map((c) => (
-                  <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
-                ))}
-              </select>
             </div>
 
             <div className={styles["table-wrap"]}>

@@ -1,8 +1,4 @@
 "use client";
-<<<<<<< HEAD
-import { ApiError } from 'next/dist/server/api-utils';
-import React, { useState , useEffect, useMemo} from 'react';
-=======
 
 import React, { useEffect, useMemo, useState } from "react";
 import styles from "./css/maquinaria.module.css";
@@ -40,31 +36,12 @@ const mantenimientoInicial = {
   fecha_proximo: "",
   comprobante: "",
 };
->>>>>>> jjmp
 
 export default function GestionMaquinaria() {
   const [lista, setLista] = useState([]);
-<<<<<<< HEAD
-  const [esEdicion, setEsEdicion] = useState(false);
-  const [busqueda, setBusqueda] = useState("");
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  const maquinariaFiltrada = useMemo(() => {
-    const texto = busqueda.toLowerCase();
-    return lista.filter((m) => {
-      return (
-        m.nombre?.toLowerCase().includes(texto) ||
-        m.descripcion?.toLowerCase().includes(texto) ||
-        m.observacion?.toLowerCase().includes(texto)
-      );
-    });
-  }, [lista, busqueda]);
-=======
   const [detalle, setDetalle] = useState(null);
   const [maquinaria, setMaquinaria] = useState(maquinariaInicial);
   const [mantenimiento, setMantenimiento] = useState(mantenimientoInicial);
->>>>>>> jjmp
 
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
@@ -155,7 +132,6 @@ export default function GestionMaquinaria() {
     })();
   }, []);
 
-<<<<<<< HEAD
   useEffect(() => {
     const pending = localStorage.getItem('pendingAction');
     if (pending) {
@@ -163,8 +139,7 @@ export default function GestionMaquinaria() {
         const { action } = JSON.parse(pending);
         localStorage.removeItem('pendingAction');
         if (action === 'nuevo') {
-          Cancelar();
-          setEsEdicion(true);
+          abrirModalNuevaMaquinaria();
         }
       } catch (e) {
         console.error('Error parsing pending action:', e);
@@ -172,24 +147,6 @@ export default function GestionMaquinaria() {
     }
   }, []);
 
-  const cargarMaquinaria = async () => {
-    try {
-      const response = await fetch(API_URL);
-      if (response.ok) {
-        const data = await response.json();
-        setLista(data);
-      }
-    } catch (error) {
-      console.error("Error al cargar la maquinaria: ", error);
-    }
-  };
-
-  // Manejador de cambios en los inputs
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setError('');
-    setMaquinaria({ ...maquinaria, [name]: value });
-=======
   async function cargarDetalleMaquinaria(idMaquinaria) {
   try {
     setError("");
@@ -282,7 +239,6 @@ export default function GestionMaquinaria() {
     setMensaje("");
     setError("");
     setModalMaquinaria(true);
->>>>>>> jjmp
   };
 
   const abrirModalEditarMaquinaria = (item) => {
@@ -306,45 +262,6 @@ export default function GestionMaquinaria() {
     setModalMaquinaria(true);
   };
 
-<<<<<<< HEAD
-    if (!maquinaria.nombre) {
-      setError('El nombre de la maquinaria es obligatorio');
-      return;
-    }
-    try{
-    if (esEdicion) {
-      await fetch(`${API_URL}/${maquinaria.id_maquinaria}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(maquinaria)
-      });
-    } else {
-      const {id_maquinaria , ...datosNuevaMaquinaria} = maquinaria;
-       await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datosNuevaMaquinaria)
-      });
-    }
-    cargarMaquinaria();
-    Cancelar();
-    setSuccess('Maquinaria guardada correctamente');
-  }catch(error){
-    console.error("Error al cargar la maquinaria: ", error);
-    setError('Error al guardar la maquinaria');
-  }
-  };
-
-  // Cargar datos al formulario para editar
-  const IniciarEdicion = (m) => {
-    setMaquinaria(m);
-    setEsEdicion(true);
-  };
-
-  // Eliminar elemento de la lista
-  const Eliminar = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar esta maquinaria?")) return;
-=======
   const guardarMaquinaria = async (e) => {
     e.preventDefault();
     setMensaje("");
@@ -354,7 +271,6 @@ export default function GestionMaquinaria() {
       setError("El nombre de la maquinaria es obligatorio.");
       return;
     }
->>>>>>> jjmp
 
     try {
       const response = await fetch(
@@ -382,48 +298,6 @@ export default function GestionMaquinaria() {
     }
   };
 
-<<<<<<< HEAD
-  // Limpiar formulario
-  const Cancelar = () => {
-    setMaquinaria({ id_maquinaria: '', nombre: '', descripcion: '', observacion: '' });
-    setEsEdicion(false);
-    setError('');
-    setSuccess('');
-  };
-
-  return (
-    <div className="w-full mt-4 animate-in fade-in duration-500">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Gestión de Maquinaria</h2>
-
-      {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
-      {success && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{success}</div>}
-
-      {/* Buscador */}
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Buscar maquinaria..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E] w-full md:w-80"
-        />
-      </div>
-
-      {/* Formulario */}
-      <form onSubmit={Guardar} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-
-        {/* Fila 1: Nombre */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Maquinaria</label>
-          <input
-            type="text"
-            name="nombre"
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B547E]"
-            value={maquinaria.nombre}
-            onChange={handleChange}
-            placeholder="Ej. Retroexcavadora, Taladro de banco..."
-          />
-=======
   const abrirModalMantenimiento = () => {
     if (!detalle?.maquinaria?.id_maquinaria) {
       setError("Selecciona una maquinaria antes de registrar un mantenimiento.");
@@ -582,7 +456,6 @@ export default function GestionMaquinaria() {
           <p>
             Controla equipos, estado operativo, ubicación, responsables y mantenimientos. Cada mantenimiento con costo se registra automáticamente como gasto.
           </p>
->>>>>>> jjmp
         </div>
 
         <button type="button" className={styles["btn-hero"]} onClick={abrirModalNuevaMaquinaria}>
@@ -675,28 +548,6 @@ export default function GestionMaquinaria() {
                   </div>
                 </div>
 
-<<<<<<< HEAD
-      {/* Tabla de Registros */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="p-4 font-semibold text-gray-600">Nombre</th>
-              <th className="p-4 font-semibold text-gray-600">Descripción</th>
-              {/* Añadí la columna Observación para que se vea en la tabla */}
-              <th className="p-4 font-semibold text-gray-600">Observación</th>
-              <th className="p-4 font-semibold text-gray-600 text-center">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {maquinariaFiltrada.map((m) => (
-              <tr key={m.id_maquinaria} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                <td className="p-4 text-gray-800 font-medium">{m.nombre}</td>
-                <td className="p-4 text-gray-600">{m.descripcion}</td>
-                <td className="p-4 text-gray-600 text-sm">{m.observacion}</td>
-                <td className="p-4 flex justify-center gap-2">
-                  <button onClick={() => IniciarEdicion(m)} className="px-3 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition text-sm font-medium">
-=======
                 <div className={styles["machine-meta"]}>
                   <span>{item.ubicacion || "Sin ubicación"}</span>
                   <span>{item.total_mantenimientos || 0} mant.</span>
@@ -751,7 +602,6 @@ export default function GestionMaquinaria() {
 
                 <div className={styles["detail-actions"]}>
                   <button type="button" className={styles["btn-secondary"]} onClick={() => abrirModalEditarMaquinaria(detalle.maquinaria)}>
->>>>>>> jjmp
                     Editar
                   </button>
                   {Number(detalle.maquinaria.estado) === 0 ? (
@@ -812,21 +662,6 @@ export default function GestionMaquinaria() {
                   <button type="button" className={styles["btn-primary"]} onClick={abrirModalMantenimiento}>
                     + Registrar mantenimiento
                   </button>
-<<<<<<< HEAD
-                </td>
-              </tr>
-            ))}
-            {maquinariaFiltrada.length === 0 && (
-              <tr>
-                <td colSpan="4" className="p-8 text-center text-gray-400">
-                  No hay maquinaria registrada aún.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-=======
                 </div>
 
                 <div className={styles["maintenance-list"]}>
@@ -970,7 +805,6 @@ export default function GestionMaquinaria() {
           </div>
         </div>
       )}
->>>>>>> jjmp
     </div>
   );
 }

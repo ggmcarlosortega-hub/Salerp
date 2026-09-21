@@ -93,18 +93,6 @@ export default function GestionClientes() {
   const [modalDocumento, setModalDocumento] = useState(null); // cotizacion | factura | contrato | abono
   const [clienteDirty, setClienteDirty] = useState(false);
   const [tipoConfirmarSalir, setTipoConfirmarSalir] = useState('documento'); // 'documento' | 'cliente'
-<<<<<<< HEAD
-
-  const [mostrarModalConvertir, setMostrarModalConvertir] = useState(false);
-  const [cotizacionAConvertir, setCotizacionAConvertir] = useState(null);
-  const [datosCotizacionConvertir, setDatosCotizacionConvertir] = useState(null);
-  const [loadingConvertir, setLoadingConvertir] = useState(false);
-  const [errorConvertir, setErrorConvertir] = useState('');
-
-  const [editandoEstadoDoc, setEditandoEstadoDoc] = useState(null); // { id, tipo, estado }
-  const [guardandoEstado, setGuardandoEstado] = useState(false);
-=======
->>>>>>> jjmp
 
   const [documentoForm, setDocumentoForm] = useState(documentoInicial);
   const [contratoForm, setContratoForm] = useState(contratoInicial);
@@ -113,8 +101,6 @@ export default function GestionClientes() {
   const [documentoEnEdicion, setDocumentoEnEdicion] = useState(null);
   const [formDirty, setFormDirty] = useState(false);
   const [mostrarConfirmarSalir, setMostrarConfirmarSalir] = useState(false);
-<<<<<<< HEAD
-=======
   const [mostrarModalCliente, setMostrarModalCliente] = useState(false);
 
   const { notify } = useNotification();
@@ -129,8 +115,7 @@ export default function GestionClientes() {
       setError("");
     }
   }, [mensaje, error, notify]);
->>>>>>> jjmp
-  
+
   useEffect(() => {
     cargarClientes();
     cargarDatosDocumento();
@@ -314,11 +299,7 @@ export default function GestionClientes() {
     setMensaje("");
     setError("");
     setClienteDirty(false);
-<<<<<<< HEAD
-    setVistaActual("detalle");
-=======
     setMostrarModalCliente(true);
->>>>>>> jjmp
   };
 
   const volverLista = () => {
@@ -394,14 +375,9 @@ export default function GestionClientes() {
           : "Cliente registrado correctamente."
       );
 
-<<<<<<< HEAD
-setModoEdicion(false);
-      setClienteDirty(false);
-=======
       setModoEdicion(false);
       setClienteDirty(false);
       setMostrarModalCliente(false);
->>>>>>> jjmp
 
       if (esEdicion) {
         await cargarDetalleCliente(cliente.id_cliente);
@@ -639,11 +615,7 @@ const guardarDocumentoComercial = async () => {
       // 3. Enviar la petición dinámica (PUT o POST)
       const response = await fetch(url, {
         method: esEdicion ? "PUT" : "POST",
-<<<<<<< HEAD
-        headers: { "Content-Type": "application/json" },
-=======
         headers: getHeaders(),
->>>>>>> jjmp
         body: JSON.stringify(payload),
       });
 
@@ -737,11 +709,7 @@ const guardarDocumentoComercial = async () => {
 
       const response = await fetch(url, {
         method: esEdicion ? "PUT" : "POST",
-<<<<<<< HEAD
-        headers: { "Content-Type": "application/json" },
-=======
         headers: getHeaders(),
->>>>>>> jjmp
         body: JSON.stringify(payload),
       });
 
@@ -766,27 +734,6 @@ const guardarDocumentoComercial = async () => {
   const handleAbonoChange = (e) => {
     const { name, value, files } = e.target;
     setFormDirty(true);
-<<<<<<< HEAD
-
-    if (name === "id_factura") {
-      setAbonoForm((prev) => ({
-        ...prev,
-        id_factura: value,
-        id_contrato: value ? "" : prev.id_contrato,
-      }));
-      return;
-    }
-
-    if (name === "id_contrato") {
-      setAbonoForm((prev) => ({
-        ...prev,
-        id_contrato: value,
-        id_factura: value ? "" : prev.id_factura,
-      }));
-      return;
-    }
-=======
->>>>>>> jjmp
 
     if (name === "comprobante") {
       setAbonoForm((prev) => ({
@@ -840,10 +787,7 @@ const guardarDocumentoComercial = async () => {
 
       const response = await fetch(url, {
         method: esEdicion ? "PUT" : "POST",
-<<<<<<< HEAD
-=======
         headers: getFileHeaders(),
->>>>>>> jjmp
         body: formData,
       });
 
@@ -883,37 +827,6 @@ const guardarDocumentoComercial = async () => {
   const accionDocumento = async (accion, doc) => {
     setMenuDocumentoAbierto(null);
 
-<<<<<<< HEAD
-    if (accion === "pdf") {
-      if (doc.tipo_documento === "Abono" && doc.imagen_comprobante) {
-        window.open(getArchivoUrl(doc.imagen_comprobante), "_blank");
-        return;
-      }
-      abrirPDFDocumento(doc.tipo_documento, doc.id_documento);
-      return;
-    }
-
-    if (accion === "convertir") {
-      setMenuDocumentoAbierto(null);
-      setCotizacionAConvertir(doc);
-      setDatosCotizacionConvertir(null);
-      setErrorConvertir('');
-      setLoadingConvertir(true);
-      setMostrarModalConvertir(true);
-      try {
-        const res = await fetch(`${API_DOCUMENTO}/cotizacion/${doc.id_documento}`);
-        if (!res.ok) throw new Error('Error cargando cotización');
-        const data = await res.json();
-        setDatosCotizacionConvertir(data);
-      } catch (err) {
-        setErrorConvertir(err.message);
-      } finally {
-        setLoadingConvertir(false);
-      }
-      return;
-    }
-
-=======
     if (accion === "pdf" || accion === "ver") {
       const mapTipo = {
         Cotización: "cotizacion",
@@ -927,136 +840,11 @@ const guardarDocumentoComercial = async () => {
       return;
     }
 
->>>>>>> jjmp
     if (accion === "modificar") {
       try {
         setCargando(true);
         setError("");
         setMensaje("");
-<<<<<<< HEAD
-
-        let endpoint = "";
-        let tipoModal = "";
-        
-        if (doc.tipo_documento === "Cotización") { endpoint = "cotizacion"; tipoModal = "cotizacion"; }
-        else if (doc.tipo_documento === "Factura") { endpoint = "factura"; tipoModal = "factura"; }
-        else if (doc.tipo_documento === "Contrato") { endpoint = "contrato"; tipoModal = "contrato"; }
-        else if (doc.tipo_documento === "Abono") { endpoint = "abono"; tipoModal = "abono"; }
-
-        let data = {}; // Aquí guardaremos los datos (del backend o de fallback)
-
-        // Intentamos obtener los detalles completos del backend
-        try {
-          const response = await fetch(`${API_DOCUMENTO}/${endpoint}/${doc.id_documento}`);
-          console.log(response);
-          if (response.ok) {
-            data = await response.json();
-            console.log(data);
-          } else {
-            // Si el backend lanza 404, usamos los datos básicos que ya tenemos en la vista
-            console.warn(`⚠️ Endpoint GET /api/documento/${endpoint}/${doc.id_documento} no encontrado. Usando datos básicos.`);
-            data = doc; 
-          }
-        } catch (fetchError) {
-          console.warn("⚠️ Error de conexión. Usando datos de la tabla.", fetchError);
-          data = doc;
-        }
-
-        setDocumentoEnEdicion(doc); // Activamos el modo edición
-        setFormDirty(false); // Formulario recien cargado, no esta sucio
-
-        // Llenar los formularios con los datos obtenidos (o los de fallback)
-        if (tipoModal === "cotizacion" || tipoModal === "factura") {
-          setDocumentoForm({
-            asunto: data.asunto || doc.titulo || "",
-            iva: data.iva || 0,
-            descuento: data.descuento || 0,
-            observaciones: data.observaciones || doc.observacion || "",
-            condiciones_pago: data.condiciones_pago || documentoInicial.condiciones_pago,
-            id_producto: "",
-            cantidad: 1,
-            // Solo usar items del backend si existen; si 404, mantener items actuales del formulario
-            items: data.items || data.detalles || documentoForm.items || [] 
-          });
-        } else if (tipoModal === "contrato") {
-          setContratoForm({
-            ...contratoInicial,
-            id_factura: data.id_factura || doc.id_factura || "",
-            asunto: data.asunto || doc.titulo || "",
-            contratista: data.contratista || contratoInicial.contratista,
-            contratante: data.contratante || nombreCompletoCliente(),
-            fecha_inicio: data.fecha_inicio || "",
-            fecha_fin: data.fecha_fin || "",
-            valor_total: data.valor_total || doc.total || "",
-            clausulas: data.clausulas || "",
-            observacion: data.observacion || doc.observacion || ""
-          });
-        } else if (tipoModal === "abono") {
-          setAbonoForm({
-            ...abonoInicial,
-            id_factura: data.id_factura || "",
-            id_contrato: data.id_contrato || "",
-            monto: data.monto || doc.total || "",
-            metodo_pago: data.metodo_pago || abonoInicial.metodo_pago,
-            referencia: data.referencia || "",
-            observacion: data.observacion || doc.observacion || ""
-          });
-        }
-
-        setModalDocumento(tipoModal); // Abrimos el modal
-      } catch (err) {
-        setError("Error al preparar el documento para edición.");
-        console.error(err);
-      } finally {
-        setCargando(false);
-      }
-      return;
-    }
-  };
-
-  const guardarEstadoDocumento = async (id, tipo, nuevoEstado) => {
-    setGuardandoEstado(true);
-    try {
-      const endpoint = tipo === 'Cotización' ? 'cotizacion' : 'factura';
-      const res = await fetch(`${API_DOCUMENTO}/${endpoint}/${id}/estado`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado })
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Error al actualizar estado');
-      }
-      setEditandoEstadoDoc(null);
-      await cargarDetalleCliente(cliente.id_cliente);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setGuardandoEstado(false);
-    }
-  };
-
-  const confirmarConvertirCotizacion = async () => {
-    if (!cotizacionAConvertir) return;
-    setLoadingConvertir(true);
-    setErrorConvertir('');
-    try {
-      const res = await fetch(`${API_DOCUMENTO}/cotizacion/${cotizacionAConvertir.id_documento}/factura`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al convertir cotización.');
-      setMensaje(`Factura #${data.id_factura} creada correctamente.`);
-      setMostrarModalConvertir(false);
-      setCotizacionAConvertir(null);
-      setDatosCotizacionConvertir(null);
-      await cargarDetalleCliente(cliente.id_cliente);
-    } catch (err) {
-      setErrorConvertir(err.message);
-    } finally {
-      setLoadingConvertir(false);
-    }
-  };
-=======
->>>>>>> jjmp
 
         let endpoint = "";
         let tipoModal = "";
@@ -1467,11 +1255,7 @@ const guardarDocumentoComercial = async () => {
           <div>
             <span className={styles["modal-badge"]}>Abono</span>
             <h3>{documentoEnEdicion ? "Modificar abono" : "Registrar abono"}</h3>
-<<<<<<< HEAD
-            <p>Registra pagos parciales o totales sobre facturas o contratos del cliente.</p>
-=======
             <p>Registra pagos parciales o totales sobre facturas del cliente.</p>
->>>>>>> jjmp
           </div>
           <button type="button" onClick={cerrarModalDocumento} className={styles["btn-close"]}>×</button>
         </div>
@@ -1552,28 +1336,6 @@ const guardarDocumentoComercial = async () => {
           <p>Tenés cambios sin guardar. Si salís ahora, se perderán.</p>
         </div>
         <div className={styles["modal-actions"]}>
-<<<<<<< HEAD
-          <button type="button" onClick={cerrarModalDocumento} className={styles["btn-light"]}>Cancelar</button>
-          <button type="button" onClick={guardarAbono} className={styles["btn-primary"]} disabled={guardandoDocumento}>
-            {guardandoDocumento ? "Guardando..." : (documentoEnEdicion ? "Actualizar abono" : "Registrar abono")}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderConfirmarSalir = () => (
-    <div className={styles["modal-overlay"]}>
-      <div className={`${styles["modal"]} ${styles["modal-sm"]}`}>
-        <div className={styles["modal-header"]}>
-          <h3>¿Salir sin guardar?</h3>
-        </div>
-        <div className={styles["modal-body"]}>
-          <p>Tenés cambios sin guardar. Si salís ahora, se perderán.</p>
-        </div>
-        <div className={styles["modal-actions"]}>
-=======
->>>>>>> jjmp
           <button type="button" onClick={() => setMostrarConfirmarSalir(false)} className={styles["btn-light"]}>
             Quedarme
           </button>
@@ -1956,11 +1718,7 @@ const guardarDocumentoComercial = async () => {
           </section>
 
           {cliente.id_cliente && (
-<<<<<<< HEAD
-            <section className={styles["card"]}>
-=======
             <section className={`${styles["card"]} ${styles["card-documentos"]}`}>
->>>>>>> jjmp
               <div className={styles["card-header"]}>
                 <div>
                   <h2>Historial del cliente</h2>
@@ -1981,15 +1739,11 @@ const guardarDocumentoComercial = async () => {
                     <option value="contratos">Contratos</option>
                     <option value="abonos">Abonos</option>
                   </select>
-<<<<<<< HEAD
-
-=======
                   <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
                     <option value="activos">Activos</option>
                     <option value="desactivados">Desactivados</option>
                     <option value="todos">Todos</option>
                   </select>
->>>>>>> jjmp
                   <input type="text" placeholder={`Buscar en ${tituloDocumentos[tipoDocumentos]}...`} value={busquedaDoc} onChange={(e) => setBusquedaDoc(e.target.value)} />
                 </div>
               </div>
@@ -2004,10 +1758,6 @@ const guardarDocumentoComercial = async () => {
                       <th>Total / Monto</th>
                       <th>Observación</th>
                       <th></th>
-<<<<<<< HEAD
-                      <th></th>
-=======
->>>>>>> jjmp
                     </tr>
                   </thead>
 
@@ -2021,57 +1771,6 @@ const guardarDocumentoComercial = async () => {
 
                         <td>{formatoFecha(doc.fecha)}</td>
 
-<<<<<<< HEAD
-                        <td onDoubleClick={() => {
-                          if (doc.tipo_documento === "Cotización" || doc.tipo_documento === "Factura") {
-                            setEditandoEstadoDoc({ id: doc.id_documento, tipo: doc.tipo_documento, estado: doc.estado });
-                          }
-                        }}>
-                          {editandoEstadoDoc?.id === doc.id_documento && editandoEstadoDoc?.tipo === doc.tipo_documento ? (
-                            <select
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                              value={editandoEstadoDoc.estado}
-                              onChange={(e) => setEditandoEstadoDoc({ ...editandoEstadoDoc, estado: e.target.value })}
-                              onBlur={() => {
-                                if (editandoEstadoDoc.estado !== doc.estado) {
-                                  guardarEstadoDocumento(doc.id_documento, doc.tipo_documento, editandoEstadoDoc.estado);
-                                } else {
-                                  setEditandoEstadoDoc(null);
-                                }
-                              }}
-                              autoFocus
-                            >
-                              {doc.tipo_documento === "Cotización" && (
-                                <>
-                                  <option value="Borrador">Borrador</option>
-                                  <option value="Aceptada">Aceptada</option>
-                                  <option value="Rechazada">Rechazada</option>
-                                  <option value="Convertida">Convertida</option>
-                                </>
-                              )}
-                              {doc.tipo_documento === "Factura" && (
-                                <>
-                                  <option value="Pendiente">Pendiente</option>
-                                  <option value="Pagada">Pagada</option>
-                                  <option value="Anulada">Anulada</option>
-                                </>
-                              )}
-                            </select>
-                          ) : (
-                            <span
-                              className={`inline-block px-2 py-1 rounded text-xs font-medium cursor-pointer ${
-                                doc.estado === "Pagada" || doc.estado === "Aceptada" || doc.estado === "Activo"
-                                  ? "bg-green-100 text-green-700"
-                                  : doc.estado === "Anulada" || doc.estado === "Rechazada"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-blue-100 text-blue-700"
-                              }`}
-                              title="Doble clic para editar"
-                            >
-                              {doc.tipo_documento === "Abono" ? (doc.metodo_pago || "Sin método") : (doc.estado || "Sin estado")}
-                            </span>
-                          )}
-=======
                         <td>
                           <span
                             className={
@@ -2087,28 +1786,12 @@ const guardarDocumentoComercial = async () => {
                           >
                             {Number(doc.activo) !== 1 ? "Desactivado" : doc.estado || "Sin estado"}
                           </span>
->>>>>>> jjmp
                         </td>
 
                         <td><strong>{formatoMoneda(doc.total)}</strong></td>
 
                         <td>{doc.observacion || "Sin observación"}</td>
 
-<<<<<<< HEAD
-                        <td>
-                          {doc.tipo_documento === "Cotización" && doc.estado !== "Convertida" && (
-                            <button
-                              type="button"
-                              onClick={() => accionDocumento("convertir", doc)}
-                              className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 transition"
-                            >
-                              Convertir
-                            </button>
-                          )}
-                        </td>
-
-=======
->>>>>>> jjmp
                         <td className={styles["actions-cell"]}>
                           <button
                             type="button"
@@ -2120,9 +1803,6 @@ const guardarDocumentoComercial = async () => {
 
                           {menuDocumentoAbierto === `${tipoDocumentos}-${doc.id_documento}` && (
                             <div className={styles["doc-menu"]}>
-<<<<<<< HEAD
-                              <button type="button" onClick={() => accionDocumento("modificar", doc)}>Modificar</button>
-=======
                               {Number(doc.activo) === 1 ? (
                                 <>
                                   <button type="button" onClick={() => accionDocumento("modificar", doc)}>Modificar</button>
@@ -2134,7 +1814,6 @@ const guardarDocumentoComercial = async () => {
                               ) : (
                                 <button type="button" onClick={() => accionDocumento("activar", doc)}>Activar</button>
                               )}
->>>>>>> jjmp
                               <button type="button" onClick={() => accionDocumento("pdf", doc)}>
                                 {doc.tipo_documento === "Abono" ? "Ver comprobante" : "Ver PDF"}
                               </button>
@@ -2146,17 +1825,12 @@ const guardarDocumentoComercial = async () => {
 
                     {documentosFiltrados.length === 0 && (
                       <tr>
-<<<<<<< HEAD
-                        <td colSpan="7" className={styles["empty"]}>
-                          No hay {tituloDocumentos[tipoDocumentos].toLowerCase()} registrados para este cliente.
-=======
                         <td colSpan="6" className={styles["empty"]}>
                           {filtroEstado === "activos"
                             ? `No hay ${tituloDocumentos[tipoDocumentos].toLowerCase()} activos para este cliente.`
                             : filtroEstado === "desactivados"
                             ? `No hay ${tituloDocumentos[tipoDocumentos].toLowerCase()} desactivados para este cliente.`
                             : `No hay ${tituloDocumentos[tipoDocumentos].toLowerCase()} registrados para este cliente.`}
->>>>>>> jjmp
                         </td>
                       </tr>
                     )}
@@ -2178,67 +1852,6 @@ const guardarDocumentoComercial = async () => {
               <button onClick={() => setMostrarModalConfirmacion(false)} className={styles["btn-light"]}>Cancelar</button>
               <button onClick={confirmarDesactivacion} className={styles["btn-danger"]}>Sí, desactivar</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {mostrarModalConvertir && (
-        <div className={styles["modal-overlay"]}>
-          <div className={styles["modal"]} style={{ maxWidth: 600 }}>
-            <h3>Convertir Cotización a Factura</h3>
-
-            {loadingConvertir ? (
-              <div className="text-center py-8 text-gray-500">Cargando datos...</div>
-            ) : errorConvertir ? (
-              <div className="py-4 text-red-500">
-                <p className="font-bold">Error</p>
-                <p className="text-sm">{errorConvertir}</p>
-              </div>
-            ) : datosCotizacionConvertir ? (
-              <>
-                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                  <p><strong>Cliente:</strong> {datosCotizacionConvertir.nombre} {datosCotizacionConvertir.apellido}</p>
-                  <p><strong>Asunto:</strong> {datosCotizacionConvertir.asunto}</p>
-                  <p><strong>Fecha:</strong> {new Date(datosCotizacionConvertir.fecha).toLocaleDateString('es-CO')}</p>
-                  <p><strong>IVA:</strong> {datosCotizacionConvertir.iva}% | <strong>Descuento:</strong> {formatoMoneda(datosCotizacionConvertir.descuento)}</p>
-                  <p className="text-lg font-bold mt-2">Total: {formatoMoneda(datosCotizacionConvertir.total)}</p>
-                </div>
-
-                {datosCotizacionConvertir.detalles && datosCotizacionConvertir.detalles.length > 0 ? (
-                  <table className="w-full text-sm mb-4">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-2">Producto</th>
-                        <th className="text-right py-2">Cantidad</th>
-                        <th className="text-right py-2">Precio Unit.</th>
-                        <th className="text-right py-2">Subtotal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {datosCotizacionConvertir.detalles.map((item, i) => (
-                        <tr key={i} className="border-b border-gray-100">
-                          <td className="py-2">{item.producto}</td>
-                          <td className="text-right py-2">{item.cantidad}</td>
-                          <td className="text-right py-2">{formatoMoneda(item.precio_unitario)}</td>
-                          <td className="text-right py-2 font-medium">{formatoMoneda(item.subtotal)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="text-gray-500 text-sm mb-4">La cotización no tiene productos.</p>
-                )}
-
-                <p className="text-sm text-gray-600 mb-4">
-                  Al convertir, se creará una factura con estos datos y la cotización pasará a estado <strong>"Convertida"</strong>.
-                </p>
-
-                <div className={styles["modal-actions"]}>
-                  <button onClick={() => { setMostrarModalConvertir(false); setCotizacionAConvertir(null); setDatosCotizacionConvertir(null); }} className={styles["btn-light"]}>Cancelar</button>
-                  <button onClick={confirmarConvertirCotizacion} className="px-6 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition">Convertir a Factura</button>
-                </div>
-              </>
-            ) : null}
           </div>
         </div>
       )}

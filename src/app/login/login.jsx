@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { getHeaders, loginUser } from "@/services/api";
+import { loginUser } from "@/services/api";
 
 export default function Login() {
   const router = useRouter();
@@ -10,11 +10,8 @@ export default function Login() {
   const [correo, setCorreo] = useState("");
   const [password, setpassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-<<<<<<< HEAD
   const [loading, setLoading] = useState(false);
-=======
   const [modalContacto, setModalContacto] = useState(false);
->>>>>>> jjmp
 
   const verificarLogin = async (e) => {
     e.preventDefault(); // Evita que la página se recargue
@@ -25,39 +22,17 @@ export default function Login() {
       return;
     }
 
+    setLoading(true);
     try {
-<<<<<<< HEAD
-      setLoading(true);
-      setErrorMsg("");
-
-      const response = await fetch("http://localhost:3001/api/login/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ correo, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        localStorage.setItem("user_salerp", JSON.stringify(data.usuario));
-        router.push("/dashboard");
+      const usuario = await loginUser(correo, password);
+      if (usuario.rol === "cliente") {
+        router.push("/dashboard/cotizar");
       } else {
-        setErrorMsg(data.message || "Credenciales inválidas.");
-=======
-      try {
-        const usuario = await loginUser(correo, password);
-        if (usuario.rol === "cliente") {
-          router.push("/dashboard/cotizar");
-        } else {
-          router.push("/dashboard");
-        }
-      } catch (err) {
-        setErrorMsg(err.message || "Credenciales inválidas.");
->>>>>>> jjmp
+        router.push("/dashboard");
       }
     } catch (error) {
       console.error("Error en el inicio de sesión:", error);
-      setErrorMsg("No se pudo conectar con el servidor.");
+      setErrorMsg(error.message || "No se pudo conectar con el servidor.");
     } finally {
       setLoading(false);
     }
